@@ -16,7 +16,7 @@ seven HA entity IDs from its YAML config and writes back via
 `hass.callService()`.
 
 **Tech Stack:** LitElement 3, Rollup 4,
-@rollup/plugin-node-resolve, rollup-plugin-terser, Vitest
+@rollup/plugin-node-resolve, @rollup/plugin-terser, Vitest
 
 ---
 
@@ -62,7 +62,7 @@ nanoleaf-card/
     "@rollup/plugin-node-resolve": "^15.0.0",
     "lit": "^3.0.0",
     "rollup": "^4.0.0",
-    "rollup-plugin-terser": "^7.0.2",
+    "@rollup/plugin-terser": "^0.4.0",
     "vitest": "^1.0.0"
   }
 }
@@ -72,7 +72,7 @@ nanoleaf-card/
 
 ```js
 import resolve from '@rollup/plugin-node-resolve';
-import { terser } from 'rollup-plugin-terser';
+import terser from '@rollup/plugin-terser';
 
 export default {
   input: 'src/nanoleaf-card.js',
