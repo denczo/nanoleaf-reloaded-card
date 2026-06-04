@@ -71,6 +71,14 @@ describe('rgbToHs + hsToRgb round-trip', () => {
   it('returns h=0, s=0 for white', () => {
     expect(rgbToHs(255, 255, 255)).toEqual({ h: 0, s: 0 });
   });
+
+  it('treats h=360 as red (same as h=0)', () => {
+    const [r0, g0, b0] = hsToRgb(0, 1);
+    const [r360, g360, b360] = hsToRgb(360, 1);
+    expect(r360).toBe(r0);
+    expect(g360).toBe(g0);
+    expect(b360).toBe(b0);
+  });
 });
 
 describe('debounce', () => {

@@ -59,6 +59,7 @@ export function rgbToHs(r, g, b) {
  * Value is fixed at 1 (full brightness).
  */
 export function hsToRgb(h, s) {
+  h = h % 360;
   const c = s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = 1 - c;
