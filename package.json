@@ -1,0 +1,16 @@
+{
+  "name": "nanoleaf-card",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "lit": "^3.0.0",
+    "rollup": "^4.0.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "vitest": "^1.0.0"
+  }
+}
