@@ -5,6 +5,7 @@ import {
   rgbToHs,
   hsToRgb,
   debounce,
+  validateConfig,
 } from '../src/helpers.js';
 
 describe('parsePanelColors', () => {
@@ -97,5 +98,31 @@ describe('debounce', () => {
     fn(); fn(); fn();
     await new Promise((r) => setTimeout(r, 30));
     expect(called).toBe(1);
+  });
+});
+
+describe('validateConfig', () => {
+  const valid = {
+    light_entity: 'light.nanoleaf',
+    color_entity: 'light.nanoleaf_base_color',
+    layout_sensor: 'sensor.nanoleaf_layout',
+    panel_colors_entity: 'input_text.nanoleaf_panel_colors',
+    pattern_entity: 'input_select.nanoleaf_pattern',
+    brightness_entity: 'input_number.nanoleaf_brightness',
+    spread_entity: 'input_number.nanoleaf_spread',
+  };
+
+  it('does not throw for a complete config', () => {
+    expect(() => validateConfig(valid)).not.toThrow();
+  });
+
+  it('throws with the missing key name', () => {
+    const bad = { ...valid };
+    delete bad.spread_entity;
+    expect(() => validateConfig(bad)).toThrow('spread_entity');
+  });
+
+  it('throws for an empty config', () => {
+    expect(() => validateConfig({})).toThrow();
   });
 });

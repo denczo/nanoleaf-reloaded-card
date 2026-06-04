@@ -88,3 +88,23 @@ export function debounce(fn, delay) {
     timer = setTimeout(() => fn(...args), delay);
   };
 }
+
+const REQUIRED_KEYS = [
+  'light_entity',
+  'color_entity',
+  'layout_sensor',
+  'panel_colors_entity',
+  'pattern_entity',
+  'brightness_entity',
+  'spread_entity',
+];
+
+export function validateConfig(config) {
+  for (const key of REQUIRED_KEYS) {
+    if (!config[key]) {
+      throw new Error(
+        `nanoleaf-card: missing required config key "${key}"`
+      );
+    }
+  }
+}
