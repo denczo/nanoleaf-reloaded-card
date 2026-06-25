@@ -6,7 +6,20 @@ import {
   hsToRgb,
   debounce,
   validateConfig,
+  normalizeDevices,
+  isDeviceOffline,
+  parseAction,
 } from '../src/helpers.js';
+
+const DEVICE = {
+  light_entity: 'light.nanoleaf',
+  color_entity: 'light.nanoleaf_base_color',
+  layout_sensor: 'sensor.nanoleaf_layout',
+  panel_colors_entity: 'input_text.nanoleaf_panel_colors',
+  pattern_entity: 'input_select.nanoleaf_pattern',
+  brightness_entity: 'input_number.nanoleaf_brightness',
+  spread_entity: 'input_number.nanoleaf_spread',
+};
 
 describe('parsePanelColors', () => {
   it('parses a multi-panel string', () => {
@@ -124,5 +137,85 @@ describe('validateConfig', () => {
 
   it('throws for an empty config', () => {
     expect(() => validateConfig({})).toThrow();
+  });
+});
+
+describe('normalizeDevices', () => {
+  it('wraps a flat single-device config into a list', () => {
+    const result = normalizeDevices({ ...DEVICE });
+    expect(result).toHaveLength(1);
+    expect(result[0].light_entity).toBe('light.nanoleaf');
+  });
+
+  it('passes through a devices array', () => {
+    const cfg = {
+      devices: [
+        { ...DEVICE, name: 'A' },
+        { ...DEVICE, name: 'B', light_entity: 'light.b' },
+      ],
+    };
+    const result = normalizeDevices(cfg);
+    expect(result.map((d) => d.name)).toEqual(['A', 'B']);
+  });
+
+  it('throws naming the device and missing key', () => {
+    const cfg = { devices: [{ ...DEVICE, name: 'Office' }] };
+    delete cfg.devices[0].spread_entity;
+    expect(() => normalizeDevices(cfg)).toThrow('Office');
+    expect(() => normalizeDevices(cfg)).toThrow('spread_entity');
+  });
+
+  it('throws when both devices and flat keys are present', () => {
+    const cfg = { ...DEVICE, devices: [{ ...DEVICE }] };
+    expect(() => normalizeDevices(cfg)).toThrow(/not both/);
+  });
+
+  it('throws on an empty devices array', () => {
+    expect(() => normalizeDevices({ devices: [] })).toThrow(
+      /empty/
+    );
+  });
+});
+
+describe('isDeviceOffline', () => {
+  it('is offline when the entity is missing', () => {
+    const hass = { states: {} };
+    expect(isDeviceOffline(hass, DEVICE)).toBe(true);
+  });
+
+  it('is offline when state is unavailable', () => {
+    const hass = {
+      states: { 'light.nanoleaf': { state: 'unavailable' } },
+    };
+    expect(isDeviceOffline(hass, DEVICE)).toBe(true);
+  });
+
+  it('is online for a normal state', () => {
+    const hass = {
+      states: { 'light.nanoleaf': { state: 'on' } },
+    };
+    expect(isDeviceOffline(hass, DEVICE)).toBe(false);
+  });
+});
+
+describe('parseAction', () => {
+  it('splits domain.service and keeps data/target', () => {
+    expect(
+      parseAction({
+        service: 'homeassistant.reload_config_entry',
+        data: { entry_id: 'abc' },
+      })
+    ).toEqual({
+      domain: 'homeassistant',
+      service: 'reload_config_entry',
+      data: { entry_id: 'abc' },
+      target: undefined,
+    });
+  });
+
+  it('returns undefined for missing or malformed action', () => {
+    expect(parseAction(undefined)).toBeUndefined();
+    expect(parseAction({})).toBeUndefined();
+    expect(parseAction({ service: 'noscope' })).toBeUndefined();
   });
 });

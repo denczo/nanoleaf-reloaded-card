@@ -99,12 +99,69 @@ const REQUIRED_KEYS = [
   'spread_entity',
 ];
 
-export function validateConfig(config) {
+export function validateConfig(config, label) {
+  const prefix = label ? `${label}: ` : '';
   for (const key of REQUIRED_KEYS) {
     if (!config[key]) {
       throw new Error(
-        `nanoleaf-card: missing required config key "${key}"`
+        `nanoleaf-card: ${prefix}` +
+        `missing required config key "${key}"`
       );
     }
   }
+}
+
+/**
+ * Normalise a card config into a list of device objects.
+ * Accepts either a `devices` array (multi-device) or the flat
+ * seven-key single-device config — not both. Throws (naming the
+ * device + key) on any missing required key, an empty `devices`
+ * array, or both styles present at once.
+ */
+export function normalizeDevices(config) {
+  const hasDevices = Array.isArray(config.devices);
+  const hasFlat = REQUIRED_KEYS.some((k) => k in config);
+  if (hasDevices && hasFlat) {
+    throw new Error(
+      'nanoleaf-card: use either "devices" or top-level entity ' +
+      'keys, not both'
+    );
+  }
+  if (hasDevices) {
+    if (config.devices.length === 0) {
+      throw new Error('nanoleaf-card: "devices" is empty');
+    }
+    config.devices.forEach((d, i) => {
+      validateConfig(d, d.name || `devices[${i}]`);
+    });
+    return config.devices;
+  }
+  validateConfig(config);
+  return [config];
+}
+
+/**
+ * A device is offline when its light_entity is absent from
+ * hass.states or reports state "unavailable".
+ */
+export function isDeviceOffline(hass, device) {
+  const st = hass?.states?.[device?.light_entity];
+  return !st || st.state === 'unavailable';
+}
+
+/**
+ * Split an HA action ({ service: "domain.svc", data?, target? })
+ * into { domain, service, data, target } for callService.
+ * Returns undefined if no usable service is given.
+ */
+export function parseAction(action) {
+  if (!action || !action.service) return undefined;
+  const dot = action.service.indexOf('.');
+  if (dot === -1) return undefined;
+  return {
+    domain: action.service.slice(0, dot),
+    service: action.service.slice(dot + 1),
+    data: action.data,
+    target: action.target,
+  };
 }
