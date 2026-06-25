@@ -9,9 +9,9 @@ No HACS card dependencies.
 
 ### Manual (homelab)
 
-1. Copy `dist/nanoleaf-card.js` to `config/www/nanoleaf-card.js`
+1. Copy `dist/nanoleaf-reloaded-card.js` to `config/www/nanoleaf-reloaded-card.js`
 2. In HA: Settings → Dashboards → Resources →
-   Add `/local/nanoleaf-card.js` (JavaScript module)
+   Add `/local/nanoleaf-reloaded-card.js` (JavaScript module)
 
 ### Via HACS custom repo
 
