@@ -8,6 +8,8 @@ import {
   debounce,
   isDeviceOffline,
   parseAction,
+  deviceStorageKey,
+  clampIndex,
 } from './helpers.js';
 
 const PATTERNS = ['solid', 'linear', 'radial', 'rainbow'];
@@ -121,12 +123,11 @@ class NanoleafCard extends LitElement {
   setConfig(config) {
     this._devices = normalizeDevices(config);
     this._config = config;
-    if (
-      this._activeIndex == null ||
-      this._activeIndex >= this._devices.length
-    ) {
-      this._activeIndex = 0;
-    }
+    this._storageKey = deviceStorageKey(this._devices);
+    this._activeIndex = clampIndex(
+      this._loadIndex(),
+      this._devices.length
+    );
     this._debouncedSetBrightness = debounce(
       (v) => this._setValue(this._activeDevice.brightness_entity, v),
       150
@@ -342,8 +343,31 @@ class NanoleafCard extends LitElement {
   }
 
   _selectDevice(e) {
-    this._activeIndex = Number(e.target.value);
+    this._activeIndex = clampIndex(
+      e.target.value,
+      this._devices.length
+    );
+    this._saveIndex();
     this.requestUpdate();
+  }
+
+  _loadIndex() {
+    try {
+      return window.localStorage.getItem(this._storageKey);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  _saveIndex() {
+    try {
+      window.localStorage.setItem(
+        this._storageKey,
+        String(this._activeIndex)
+      );
+    } catch (e) {
+      /* storage unavailable — selection just won't persist */
+    }
   }
 
   _reconnect() {

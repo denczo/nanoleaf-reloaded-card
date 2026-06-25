@@ -38,6 +38,8 @@ Configure several controllers under `devices`; the card shows a
 picker in its header and controls one device at a time. Each entry
 takes the same seven keys plus an optional `name` and
 `reconnect_action`. (The single-device form above still works.)
+The card remembers your last-selected device per browser across
+reloads.
 
 ```yaml
 type: custom:nanoleaf-card

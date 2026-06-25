@@ -141,6 +141,27 @@ export function normalizeDevices(config) {
 }
 
 /**
+ * Stable localStorage key for a device list, so each distinct card
+ * remembers its own selected device. Derived from the light
+ * entities, which uniquely identify the configured devices.
+ */
+export function deviceStorageKey(devices) {
+  return (
+    'nanoleaf-card:' + devices.map((d) => d.light_entity).join(',')
+  );
+}
+
+/**
+ * Coerce a stored/raw index to a valid device index. Returns 0 for
+ * anything missing, non-integer, or out of range.
+ */
+export function clampIndex(index, length) {
+  const i = Number(index);
+  if (!Number.isInteger(i) || i < 0 || i >= length) return 0;
+  return i;
+}
+
+/**
  * A device is offline when its light_entity is absent from
  * hass.states or reports state "unavailable".
  */

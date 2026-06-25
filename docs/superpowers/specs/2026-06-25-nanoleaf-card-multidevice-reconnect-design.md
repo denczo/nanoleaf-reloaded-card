@@ -76,8 +76,11 @@ device and key).
 - Each option shows the device `name` (fallback: the `light_entity`
   id) and a small `●` offline marker when that device's
   `light_entity` state is `unavailable`.
-- `_activeIndex` defaults to 0 and is held in component state (not
-  persisted across reloads in v1).
+- `_activeIndex` is restored from `localStorage` on `setConfig`
+  (keyed per card via `deviceStorageKey`, clamped by `clampIndex`)
+  and saved on each pick, so the last-selected device survives a
+  reload. Falls back to 0 if unset, out of range, or storage is
+  unavailable.
 
 ## Connection resilience
 

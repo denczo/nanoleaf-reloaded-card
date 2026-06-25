@@ -9,6 +9,8 @@ import {
   normalizeDevices,
   isDeviceOffline,
   parseAction,
+  deviceStorageKey,
+  clampIndex,
 } from '../src/helpers.js';
 
 const DEVICE = {
@@ -217,5 +219,39 @@ describe('parseAction', () => {
     expect(parseAction(undefined)).toBeUndefined();
     expect(parseAction({})).toBeUndefined();
     expect(parseAction({ service: 'noscope' })).toBeUndefined();
+  });
+});
+
+describe('deviceStorageKey', () => {
+  it('derives a stable key from the light entities', () => {
+    const key = deviceStorageKey([
+      { light_entity: 'light.a' },
+      { light_entity: 'light.b' },
+    ]);
+    expect(key).toBe('nanoleaf-card:light.a,light.b');
+  });
+
+  it('differs for different device sets', () => {
+    const a = deviceStorageKey([{ light_entity: 'light.a' }]);
+    const b = deviceStorageKey([{ light_entity: 'light.b' }]);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('clampIndex', () => {
+  it('keeps a valid in-range index', () => {
+    expect(clampIndex(2, 3)).toBe(2);
+  });
+
+  it('parses a numeric string', () => {
+    expect(clampIndex('1', 3)).toBe(1);
+  });
+
+  it('falls back to 0 for out-of-range, missing, or junk', () => {
+    expect(clampIndex(5, 3)).toBe(0);
+    expect(clampIndex(-1, 3)).toBe(0);
+    expect(clampIndex(null, 3)).toBe(0);
+    expect(clampIndex('abc', 3)).toBe(0);
+    expect(clampIndex(1.5, 3)).toBe(0);
   });
 });
