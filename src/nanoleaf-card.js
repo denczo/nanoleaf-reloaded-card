@@ -1,11 +1,13 @@
 import { LitElement, html, css, svg } from 'lit';
 import {
-  validateConfig,
+  normalizeDevices,
   parsePanelColors,
   resolveColor,
   rgbToHs,
   hsToRgb,
   debounce,
+  isDeviceOffline,
+  parseAction,
 } from './helpers.js';
 
 const PATTERNS = ['solid', 'linear', 'radial', 'rainbow'];
@@ -16,6 +18,19 @@ class NanoleafCard extends LitElement {
     ha-card { overflow: hidden; padding: 0; }
     svg { display: block; }
     .svg-wrapper { position: relative; }
+    .device-bar {
+      display: flex;
+      justify-content: flex-end;
+      padding: 8px 12px 0;
+    }
+    .device-select {
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 14px;
+    }
     .power-btn {
       position: absolute;
       top: 8px;
@@ -77,17 +92,47 @@ class NanoleafCard extends LitElement {
       flex: 1;
       accent-color: var(--primary-color);
     }
+    .offline {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 300px;
+      color: var(--secondary-text-color);
+      text-align: center;
+    }
+    .offline ha-icon {
+      --mdc-icon-size: 48px;
+      color: var(--error-color, var(--disabled-text-color));
+    }
+    .offline-msg { font-size: 15px; }
+    .reconnect-btn {
+      background: var(--primary-color);
+      color: var(--text-primary-color, #fff);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
   `;
 
   setConfig(config) {
-    validateConfig(config);
+    this._devices = normalizeDevices(config);
     this._config = config;
+    if (
+      this._activeIndex == null ||
+      this._activeIndex >= this._devices.length
+    ) {
+      this._activeIndex = 0;
+    }
     this._debouncedSetBrightness = debounce(
-      (v) => this._setValue(this._config.brightness_entity, v),
+      (v) => this._setValue(this._activeDevice.brightness_entity, v),
       150
     );
     this._debouncedSetSpread = debounce(
-      (v) => this._setValue(this._config.spread_entity, v),
+      (v) => this._setValue(this._activeDevice.spread_entity, v),
       150
     );
   }
@@ -97,27 +142,66 @@ class NanoleafCard extends LitElement {
     this.requestUpdate();
   }
 
+  get _activeDevice() {
+    return this._devices?.[this._activeIndex];
+  }
+
   get _isOn() {
     return (
-      this._hass?.states[this._config?.light_entity]?.state === 'on'
+      this._hass?.states[this._activeDevice?.light_entity]?.state ===
+      'on'
     );
+  }
+
+  _renderPicker() {
+    if (!this._devices || this._devices.length < 2) return '';
+    return html`
+      <div class="device-bar">
+        <select class="device-select" @change=${this._selectDevice}>
+          ${this._devices.map(
+            (dev, i) => html`
+              <option value=${i} ?selected=${i === this._activeIndex}>
+                ${dev.name || dev.light_entity}${
+                  isDeviceOffline(this._hass, dev) ? ' ●' : ''
+                }
+              </option>`
+          )}
+        </select>
+      </div>`;
   }
 
   render() {
     if (!this._hass || !this._config) return html``;
+    const d = this._activeDevice;
 
-    const layoutState =
-      this._hass.states[this._config.layout_sensor];
-    const colorsState =
-      this._hass.states[this._config.panel_colors_entity];
-    const patternState =
-      this._hass.states[this._config.pattern_entity];
-    const brightnessState =
-      this._hass.states[this._config.brightness_entity];
-    const spreadState =
-      this._hass.states[this._config.spread_entity];
-    const colorState =
-      this._hass.states[this._config.color_entity];
+    if (isDeviceOffline(this._hass, d)) {
+      const action = parseAction(d.reconnect_action);
+      return html`
+        <ha-card>
+          ${this._renderPicker()}
+          <div class="offline">
+            <ha-icon icon="mdi:lan-disconnect"></ha-icon>
+            <div class="offline-msg">
+              ${d.name || 'Nanoleaf'} unreachable
+            </div>
+            ${action
+              ? html`<button
+                  class="reconnect-btn"
+                  @click=${this._reconnect}
+                >
+                  Reconnect
+                </button>`
+              : ''}
+          </div>
+        </ha-card>`;
+    }
+
+    const layoutState = this._hass.states[d.layout_sensor];
+    const colorsState = this._hass.states[d.panel_colors_entity];
+    const patternState = this._hass.states[d.pattern_entity];
+    const brightnessState = this._hass.states[d.brightness_entity];
+    const spreadState = this._hass.states[d.spread_entity];
+    const colorState = this._hass.states[d.color_entity];
 
     const activePattern = patternState?.state ?? '';
     const brigAttr = brightnessState?.attributes ?? {};
@@ -129,6 +213,7 @@ class NanoleafCard extends LitElement {
 
     return html`
       <ha-card>
+        ${this._renderPicker()}
         <div class="svg-wrapper">
           ${this._renderSVG(layoutState, colorsState)}
           <button
@@ -256,9 +341,20 @@ class NanoleafCard extends LitElement {
       </svg>`;
   }
 
+  _selectDevice(e) {
+    this._activeIndex = Number(e.target.value);
+    this.requestUpdate();
+  }
+
+  _reconnect() {
+    const a = parseAction(this._activeDevice.reconnect_action);
+    if (!a) return;
+    this._callService(a.domain, a.service, a.data || {}, a.target);
+  }
+
   _togglePower() {
     this._callService('light', 'toggle', {
-      entity_id: this._config.light_entity,
+      entity_id: this._activeDevice.light_entity,
     });
   }
 
@@ -266,14 +362,14 @@ class NanoleafCard extends LitElement {
     const { h, s } = e.detail.color;
     const rgb = hsToRgb(h, s);
     this._callService('light', 'turn_on', {
-      entity_id: this._config.color_entity,
+      entity_id: this._activeDevice.color_entity,
       rgb_color: rgb,
     });
   }
 
   _selectPattern(pattern) {
     this._callService('input_select', 'select_option', {
-      entity_id: this._config.pattern_entity,
+      entity_id: this._activeDevice.pattern_entity,
       option: pattern,
     });
   }
@@ -293,8 +389,8 @@ class NanoleafCard extends LitElement {
     });
   }
 
-  _callService(domain, service, data) {
-    this._hass.callService(domain, service, data);
+  _callService(domain, service, data, target) {
+    this._hass.callService(domain, service, data, target);
   }
 }
 
