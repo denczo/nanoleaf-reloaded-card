@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>nanoleaf-card preview</title>
+  <style>
+    :root {
+      --primary-color: #4cc2ff;
+      --primary-text-color: #e8e8e8;
+      --secondary-text-color: #9aa0a6;
+      --disabled-text-color: #5f6368;
+      --divider-color: #3a3a3a;
+      --card-background-color: #1c1c1e;
+      --error-color: #ff5252;
+      --text-primary-color: #fff;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #121214;
+      color: var(--primary-text-color);
+      font-family: system-ui, sans-serif;
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .col { width: 360px; }
+    h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+    #log {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px;
+      background: #000;
+      color: #6f6;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      border-radius: 8px;
+      min-height: 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="col">
+    <h2>Multi-device (real + offline)</h2>
+    <div id="mount-multi"></div>
+  </div>
+  <div class="col">
+    <h2>Single device (backward-compat)</h2>
+    <div id="mount-single"></div>
+  </div>
+  <div id="log">callService calls appear here…</div>
+
+  <!-- Minimal stubs for HA elements the card references -->
+  <script>
+    const logEl = () => document.getElementById('log');
+    function logLine(msg) {
+      logEl().textContent += '\n' + msg;
+    }
+    class HaCard extends HTMLElement {
+      connectedCallback() {
+        this.style.display = 'block';
+        this.style.background = 'var(--card-background-color)';
+        this.style.borderRadius = '12px';
+        this.style.boxShadow = '0 2px 8px rgba(0,0,0,.4)';
+        this.style.overflow = 'hidden';
+      }
+    }
+    class HaIcon extends HTMLElement {
+      static get observedAttributes() { return ['icon']; }
+      connectedCallback() { this.render(); }
+      attributeChangedCallback() { this.render(); }
+      render() {
+        this.textContent = '◆';
+        this.style.display = 'inline-block';
+      }
+    }
+    class HaColorPicker extends HTMLElement {
+      connectedCallback() {
+        this.style.cssText =
+          'display:block;width:120px;height:120px;border-radius:' +
+          '50%;background:conic-gradient(red,yellow,lime,cyan,' +
+          'blue,magenta,red);cursor:pointer';
+        this.onclick = () => this.dispatchEvent(new CustomEvent(
+          'color-changed',
+          { detail: { color: { h: 200, s: 0.8 } } }
+        ));
+      }
+    }
+    customElements.define('ha-card', HaCard);
+    customElements.define('ha-icon', HaIcon);
+    customElements.define('ha-color-picker', HaColorPicker);
+  </script>
+
+  <!-- The real built bundle (self-registers <nanoleaf-card>) -->
+  <script src="../dist/nanoleaf-card.js"></script>
+
+  <script>
+    // Fake hass: one healthy device + (intentionally) missing one.
+    const hass = {
+      states: {
+        'light.nanoleaf': { state: 'on', attributes: {} },
+        'light.nanoleaf_base_color': {
+          state: 'on', attributes: { rgb_color: [60, 180, 255] },
+        },
+        'sensor.nanoleaf_layout': {
+          state: 'ok',
+          attributes: {
+            sideLength: 150,
+            positionData: [
+              { panelId: 1, x: 0,   y: 0,   o: 0,   shapeType: 8 },
+              { panelId: 2, x: 75,  y: 130, o: 180, shapeType: 8 },
+              { panelId: 3, x: 150, y: 0,   o: 0,   shapeType: 8 },
+              { panelId: 4, x: 225, y: 130, o: 180, shapeType: 8 },
+              { panelId: 5, x: 300, y: 0,   o: 0,   shapeType: 8 },
+            ],
+          },
+        },
+        'input_text.nanoleaf_panel_colors': {
+          state: '1:ff0000,2:00ff00,3:0000ff,4:ffff00,5:ff00ff',
+          attributes: {},
+        },
+        'input_select.nanoleaf_pattern': {
+          state: 'solid', attributes: {},
+        },
+        'input_number.nanoleaf_brightness': {
+          state: '70', attributes: { min: 0, max: 100, step: 1 },
+        },
+        'input_number.nanoleaf_spread': {
+          state: '50', attributes: { min: 0, max: 100, step: 1 },
+        },
+      },
+      callService(domain, service, data) {
+        logLine(`callService: ${domain}.${service} ` +
+          JSON.stringify(data));
+        return Promise.resolve();
+      },
+    };
+
+    const REAL = {
+      light_entity: 'light.nanoleaf',
+      color_entity: 'light.nanoleaf_base_color',
+      layout_sensor: 'sensor.nanoleaf_layout',
+      panel_colors_entity: 'input_text.nanoleaf_panel_colors',
+      pattern_entity: 'input_select.nanoleaf_pattern',
+      brightness_entity: 'input_number.nanoleaf_brightness',
+      spread_entity: 'input_number.nanoleaf_spread',
+    };
+    const FAKE = {
+      light_entity: 'light.does_not_exist',
+      color_entity: 'light.does_not_exist',
+      layout_sensor: 'sensor.does_not_exist',
+      panel_colors_entity: 'input_text.does_not_exist',
+      pattern_entity: 'input_select.does_not_exist',
+      brightness_entity: 'input_number.does_not_exist',
+      spread_entity: 'input_number.does_not_exist',
+    };
+
+    // Multi-device card: switch the picker to "Fake" to see the
+    // offline state + Reconnect button.
+    const multi = document.createElement('nanoleaf-reloaded-card');
+    multi.setConfig({
+      devices: [
+        { name: 'Real Nanoleaf', ...REAL },
+        {
+          name: 'Fake (offline)', ...FAKE,
+          reconnect_action: {
+            service: 'persistent_notification.create',
+            data: { message: 'Reconnect clicked' },
+          },
+        },
+      ],
+    });
+    multi.hass = hass;
+    document.getElementById('mount-multi').appendChild(multi);
+
+    // Single-device card: proves the flat config still works.
+    const single = document.createElement('nanoleaf-reloaded-card');
+    single.setConfig({ ...REAL });
+    single.hass = hass;
+    document.getElementById('mount-single').appendChild(single);
+  </script>
+</body>
+</html>

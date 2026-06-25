@@ -418,10 +418,10 @@ class NanoleafCard extends LitElement {
   }
 }
 
-customElements.define('nanoleaf-card', NanoleafCard);
+customElements.define('nanoleaf-reloaded-card', NanoleafCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'nanoleaf-card',
-  name: 'Nanoleaf Card',
+  type: 'nanoleaf-reloaded-card',
+  name: 'Nanoleaf Reloaded Card',
   description: 'Control panel for Nanoleaf light panels',
 });

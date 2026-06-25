@@ -1,4 +1,4 @@
-# Nanoleaf Card
+# Nanoleaf Reloaded Card
 
 Custom Lovelace card for Home Assistant.
 Displays your Nanoleaf panel layout and lets you control
@@ -22,7 +22,7 @@ Add this repository URL in HACS → Frontend → Custom repositories.
 ### Single device
 
 ```yaml
-type: custom:nanoleaf-card
+type: custom:nanoleaf-reloaded-card
 light_entity: light.nanoleaf
 color_entity: light.nanoleaf_base_color
 layout_sensor: sensor.nanoleaf_layout
@@ -42,7 +42,7 @@ The card remembers your last-selected device per browser across
 reloads.
 
 ```yaml
-type: custom:nanoleaf-card
+type: custom:nanoleaf-reloaded-card
 devices:
   - name: Living Room
     light_entity: light.nanoleaf_lr
