@@ -11,6 +11,10 @@ import {
   parseAction,
   deviceStorageKey,
   clampIndex,
+  hsFromWheel,
+  wheelKnobPos,
+  valueFromPointer,
+  valueFraction,
 } from '../src/helpers.js';
 
 const DEVICE = {
@@ -253,5 +257,68 @@ describe('clampIndex', () => {
     expect(clampIndex(null, 3)).toBe(0);
     expect(clampIndex('abc', 3)).toBe(0);
     expect(clampIndex(1.5, 3)).toBe(0);
+  });
+});
+
+describe('hsFromWheel', () => {
+  it('maps straight up to hue 0, full edge saturation', () => {
+    const { h, s } = hsFromWheel(0, -65, 65);
+    expect(h).toBeCloseTo(0);
+    expect(s).toBeCloseTo(1);
+  });
+
+  it('maps right (3 o\'clock) to hue 90', () => {
+    expect(hsFromWheel(65, 0, 65).h).toBeCloseTo(90);
+  });
+
+  it('maps down to hue 180 and left to hue 270', () => {
+    expect(hsFromWheel(0, 65, 65).h).toBeCloseTo(180);
+    expect(hsFromWheel(-65, 0, 65).h).toBeCloseTo(270);
+  });
+
+  it('centre has zero saturation; outside clamps to 1', () => {
+    expect(hsFromWheel(0, 0, 65).s).toBe(0);
+    expect(hsFromWheel(200, 0, 65).s).toBe(1);
+  });
+});
+
+describe('wheelKnobPos', () => {
+  it('is the inverse of hsFromWheel', () => {
+    const pos = wheelKnobPos(90, 1, 65);
+    expect(pos.x).toBeCloseTo(65);
+    expect(pos.y).toBeCloseTo(0);
+    const { h, s } = hsFromWheel(pos.x, pos.y, 65);
+    expect(h).toBeCloseTo(90);
+    expect(s).toBeCloseTo(1);
+  });
+
+  it('clamps saturation into the radius', () => {
+    expect(wheelKnobPos(0, 2, 65).y).toBeCloseTo(-65);
+    expect(wheelKnobPos(0, 0, 65)).toEqual({ x: 0, y: -0 });
+  });
+});
+
+describe('valueFromPointer', () => {
+  it('maps the track ends to min and max', () => {
+    expect(valueFromPointer(0, 0, 100, 0, 100, 1)).toBe(0);
+    expect(valueFromPointer(100, 0, 100, 0, 100, 1)).toBe(100);
+  });
+
+  it('snaps to the step and clamps out-of-bounds', () => {
+    expect(valueFromPointer(53, 0, 100, 0, 100, 10)).toBe(50);
+    expect(valueFromPointer(-20, 0, 100, 0, 100, 1)).toBe(0);
+    expect(valueFromPointer(200, 0, 100, 0, 100, 1)).toBe(100);
+  });
+});
+
+describe('valueFraction', () => {
+  it('returns the clamped fill fraction', () => {
+    expect(valueFraction(50, 0, 100)).toBe(0.5);
+    expect(valueFraction(-5, 0, 100)).toBe(0);
+    expect(valueFraction(150, 0, 100)).toBe(1);
+  });
+
+  it('returns 0 for a zero-width range', () => {
+    expect(valueFraction(5, 5, 5)).toBe(0);
   });
 });

@@ -186,3 +186,47 @@ export function parseAction(action) {
     target: action.target,
   };
 }
+
+/**
+ * Hue/saturation from a pointer offset relative to the colour
+ * wheel centre. dx/dy are pixels from centre, radius the wheel
+ * radius. 0deg points up, increasing clockwise (matches a
+ * conic-gradient hue wheel). Returns { h: 0-360, s: 0-1 }.
+ */
+export function hsFromWheel(dx, dy, radius) {
+  let h = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  if (h < 0) h += 360;
+  const s = radius ? Math.min(1, Math.hypot(dx, dy) / radius) : 0;
+  return { h, s };
+}
+
+/**
+ * Knob centre offset (x, y px from the wheel centre) for a given
+ * hue/saturation. Inverse of hsFromWheel.
+ */
+export function wheelKnobPos(h, s, radius) {
+  const r = Math.min(1, Math.max(0, s)) * radius;
+  const rad = (h * Math.PI) / 180;
+  return { x: Math.sin(rad) * r, y: -Math.cos(rad) * r };
+}
+
+/**
+ * Stepped, clamped slider value from a horizontal pointer.
+ */
+export function valueFromPointer(
+  clientX, rectLeft, rectWidth, min, max, step
+) {
+  const t = rectWidth ? (clientX - rectLeft) / rectWidth : 0;
+  const frac = Math.min(1, Math.max(0, t));
+  const raw = min + frac * (max - min);
+  const stepped = step ? Math.round(raw / step) * step : raw;
+  return Math.min(max, Math.max(min, stepped));
+}
+
+/**
+ * Fill fraction (0-1) of a slider value within [min, max].
+ */
+export function valueFraction(value, min, max) {
+  if (max === min) return 0;
+  return Math.min(1, Math.max(0, (value - min) / (max - min)));
+}

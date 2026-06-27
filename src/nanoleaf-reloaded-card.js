@@ -10,6 +10,10 @@ import {
   parseAction,
   deviceStorageKey,
   clampIndex,
+  hsFromWheel,
+  wheelKnobPos,
+  valueFromPointer,
+  valueFraction,
 } from './helpers.js';
 
 const PATTERNS = ['solid', 'linear', 'radial', 'rainbow'];
@@ -55,7 +59,38 @@ class NanoleafCard extends LitElement {
       gap: 12px;
       align-items: stretch;
     }
-    ha-color-picker { flex: none; }
+    .wheel-wrap {
+      flex: none;
+      display: flex;
+      align-items: center;
+    }
+    .color-wheel {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      touch-action: none;
+      cursor: pointer;
+      background:
+        radial-gradient(circle at center,
+          #fff 0%, rgba(255,255,255,0) 70%),
+        conic-gradient(
+          hsl(0,100%,50%), hsl(60,100%,50%),
+          hsl(120,100%,50%), hsl(180,100%,50%),
+          hsl(240,100%,50%), hsl(300,100%,50%),
+          hsl(360,100%,50%));
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+    }
+    .wheel-knob {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 3px rgba(0,0,0,0.7);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
     .right-col {
       flex: 1;
       display: flex;
@@ -80,19 +115,32 @@ class NanoleafCard extends LitElement {
       color: var(--primary-color);
       font-weight: bold;
     }
-    .slider-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 0;
+    .pill-slider {
+      position: relative;
+      height: 42px;
+      border-radius: 12px;
+      margin: 4px 0;
+      overflow: hidden;
+      cursor: pointer;
+      touch-action: none;
+      background: rgba(255,255,255,0.07);
     }
-    ha-icon.slider-icon {
+    .pill-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.22);
+    }
+    .pill-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
       --mdc-icon-size: 20px;
-      color: var(--secondary-text-color);
-    }
-    input[type='range'] {
-      flex: 1;
-      accent-color: var(--primary-color);
+      color: var(--primary-text-color);
+      pointer-events: none;
     }
     .offline {
       display: flex;
@@ -136,11 +184,49 @@ class NanoleafCard extends LitElement {
       (v) => this._setValue(this._activeDevice.spread_entity, v),
       150
     );
+    this._debouncedColor = debounce((rgb) => {
+      this._callService('light', 'turn_on', {
+        entity_id: this._activeDevice.color_entity,
+        rgb_color: rgb,
+      });
+    }, 150);
+    this._ov = {};
   }
 
   set hass(hass) {
     this._hass = hass;
+    this._reconcileOverrides(hass);
     this.requestUpdate();
+  }
+
+  // Drop optimistic overrides once HA reports the value we sent,
+  // so external changes are reflected again.
+  _reconcileOverrides(hass) {
+    const d = this._activeDevice;
+    if (!d) return;
+    const slots = {
+      brightness: d.brightness_entity,
+      spread: d.spread_entity,
+    };
+    for (const [key, ent] of Object.entries(slots)) {
+      if (this._ov?.[key] === undefined) continue;
+      if (Number(hass.states[ent]?.state) === this._ov[key]) {
+        const next = { ...this._ov };
+        delete next[key];
+        this._ov = next;
+      }
+    }
+    if (this._wheelHs && this._sentRgb) {
+      const cur = hass.states[d.color_entity]?.attributes?.rgb_color;
+      if (
+        cur &&
+        cur[0] === this._sentRgb[0] &&
+        cur[1] === this._sentRgb[1] &&
+        cur[2] === this._sentRgb[2]
+      ) {
+        this._wheelHs = undefined;
+      }
+    }
   }
 
   get _activeDevice() {
@@ -208,9 +294,13 @@ class NanoleafCard extends LitElement {
     const brigAttr = brightnessState?.attributes ?? {};
     const spreadAttr = spreadState?.attributes ?? {};
 
-    const hs = rgbToHs(
-      ...(colorState?.attributes?.rgb_color ?? [128, 128, 128])
-    );
+    const hs =
+      this._wheelHs ??
+      rgbToHs(
+        ...(colorState?.attributes?.rgb_color ?? [128, 128, 128])
+      );
+    const knob = wheelKnobPos(hs.h, hs.s, 65);
+    const swatch = hsToRgb(hs.h, hs.s);
 
     return html`
       <ha-card>
@@ -234,10 +324,22 @@ class NanoleafCard extends LitElement {
         </div>
         <div class="controls">
           <div class="color-row">
-            <ha-color-picker
-              .desiredHsColor=${hs}
-              @color-changed=${this._onColorChanged}
-            ></ha-color-picker>
+            <div class="wheel-wrap">
+              <div
+                class="color-wheel"
+                @pointerdown=${this._wheelDown}
+                @pointermove=${this._wheelMove}
+                @pointerup=${this._wheelUp}
+                @pointercancel=${this._wheelUp}
+              >
+                <div
+                  class="wheel-knob"
+                  style="left:${65 + knob.x}px;top:${
+                    65 + knob.y
+                  }px;background:rgb(${swatch.join(',')})"
+                ></div>
+              </div>
+            </div>
             <div class="right-col">
               <div class="pattern-row">
                 ${PATTERNS.map(
@@ -252,34 +354,18 @@ class NanoleafCard extends LitElement {
                     </button>`
                 )}
               </div>
-              <div class="slider-row">
-                <ha-icon
-                  class="slider-icon"
-                  icon="mdi:brightness-6"
-                ></ha-icon>
-                <input
-                  type="range"
-                  min=${brigAttr.min ?? 0}
-                  max=${brigAttr.max ?? 100}
-                  step=${brigAttr.step ?? 1}
-                  .value=${String(brightnessState?.state ?? 0)}
-                  @input=${this._onBrightnessInput}
-                />
-              </div>
-              <div class="slider-row">
-                <ha-icon
-                  class="slider-icon"
-                  icon="mdi:arrow-expand-horizontal"
-                ></ha-icon>
-                <input
-                  type="range"
-                  min=${spreadAttr.min ?? 0}
-                  max=${spreadAttr.max ?? 100}
-                  step=${spreadAttr.step ?? 1}
-                  .value=${String(spreadState?.state ?? 0)}
-                  @input=${this._onSpreadInput}
-                />
-              </div>
+              ${this._renderPill(
+                'mdi:brightness-6',
+                brightnessState,
+                brigAttr,
+                'brightness'
+              )}
+              ${this._renderPill(
+                'mdi:arrow-expand-horizontal',
+                spreadState,
+                spreadAttr,
+                'spread'
+              )}
             </div>
           </div>
         </div>
@@ -382,13 +468,31 @@ class NanoleafCard extends LitElement {
     });
   }
 
-  _onColorChanged(e) {
-    const { h, s } = e.detail.color;
-    const rgb = hsToRgb(h, s);
-    this._callService('light', 'turn_on', {
-      entity_id: this._activeDevice.color_entity,
-      rgb_color: rgb,
-    });
+  _wheelDown(e) {
+    this._wheelDragging = true;
+    e.target.setPointerCapture?.(e.pointerId);
+    this._wheelApply(e);
+  }
+
+  _wheelMove(e) {
+    if (this._wheelDragging) this._wheelApply(e);
+  }
+
+  _wheelUp(e) {
+    this._wheelDragging = false;
+    e.target.releasePointerCapture?.(e.pointerId);
+  }
+
+  _wheelApply(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const dx = e.clientX - r.left - r.width / 2;
+    const dy = e.clientY - r.top - r.height / 2;
+    const hs = hsFromWheel(dx, dy, r.width / 2);
+    this._wheelHs = hs;
+    const rgb = hsToRgb(hs.h, hs.s);
+    this._sentRgb = rgb;
+    this._debouncedColor(rgb);
+    this.requestUpdate();
   }
 
   _selectPattern(pattern) {
@@ -400,12 +504,53 @@ class NanoleafCard extends LitElement {
     });
   }
 
-  _onBrightnessInput(e) {
-    this._debouncedSetBrightness(parseFloat(e.target.value));
+  _renderPill(icon, state, attr, kind) {
+    const min = Number(attr.min ?? 0);
+    const max = Number(attr.max ?? 100);
+    const step = Number(attr.step ?? 1);
+    const val = this._ov?.[kind] ?? Number(state?.state ?? min);
+    const frac = valueFraction(val, min, max);
+    return html`
+      <div
+        class="pill-slider"
+        @pointerdown=${(e) =>
+          this._pillDown(e, min, max, step, kind)}
+        @pointermove=${(e) =>
+          this._pillMove(e, min, max, step, kind)}
+        @pointerup=${this._pillUp}
+        @pointercancel=${this._pillUp}
+      >
+        <div class="pill-fill" style="width:${frac * 100}%"></div>
+        <ha-icon class="pill-icon" icon=${icon}></ha-icon>
+      </div>`;
   }
 
-  _onSpreadInput(e) {
-    this._debouncedSetSpread(parseFloat(e.target.value));
+  _pillDown(e, min, max, step, kind) {
+    this._pillDragging = true;
+    e.target.setPointerCapture?.(e.pointerId);
+    this._pillApply(e, min, max, step, kind);
+  }
+
+  _pillMove(e, min, max, step, kind) {
+    if (this._pillDragging) {
+      this._pillApply(e, min, max, step, kind);
+    }
+  }
+
+  _pillUp(e) {
+    this._pillDragging = false;
+    e.target.releasePointerCapture?.(e.pointerId);
+  }
+
+  _pillApply(e, min, max, step, kind) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const v = valueFromPointer(
+      e.clientX, r.left, r.width, min, max, step
+    );
+    this._ov = { ...this._ov, [kind]: v };
+    if (kind === 'brightness') this._debouncedSetBrightness(v);
+    else this._debouncedSetSpread(v);
+    this.requestUpdate();
   }
 
   _setValue(entityId, value) {
