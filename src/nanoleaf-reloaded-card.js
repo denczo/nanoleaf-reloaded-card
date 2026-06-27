@@ -392,8 +392,10 @@ class NanoleafCard extends LitElement {
   }
 
   _selectPattern(pattern) {
-    this._callService('input_select', 'select_option', {
-      entity_id: this._activeDevice.pattern_entity,
+    const entityId = this._activeDevice.pattern_entity;
+    // domain from the entity itself: select.* or input_select.*
+    this._callService(entityId.split('.')[0], 'select_option', {
+      entity_id: entityId,
       option: pattern,
     });
   }
@@ -407,7 +409,8 @@ class NanoleafCard extends LitElement {
   }
 
   _setValue(entityId, value) {
-    this._callService('input_number', 'set_value', {
+    // domain from the entity itself: number.* or input_number.*
+    this._callService(entityId.split('.')[0], 'set_value', {
       entity_id: entityId,
       value,
     });
