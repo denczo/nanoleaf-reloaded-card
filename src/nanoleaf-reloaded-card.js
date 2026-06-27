@@ -14,6 +14,8 @@ import {
   wheelKnobPos,
   valueFromPointer,
   valueFraction,
+  autoDetectDevice,
+  FIELDS,
 } from './helpers.js';
 
 const PATTERNS = ['solid', 'linear', 'radial', 'rainbow'];
@@ -167,6 +169,16 @@ class NanoleafCard extends LitElement {
       cursor: pointer;
     }
   `;
+
+  static getConfigElement() {
+    return document.createElement('nanoleaf-reloaded-card-editor');
+  }
+
+  // Pre-fill the config by auto-detecting integration entities, so
+  // adding the card shows populated fields instead of blank YAML.
+  static getStubConfig(hass) {
+    return autoDetectDevice(hass);
+  }
 
   setConfig(config) {
     this._devices = normalizeDevices(config);
@@ -567,9 +579,114 @@ class NanoleafCard extends LitElement {
 }
 
 customElements.define('nanoleaf-reloaded-card', NanoleafCard);
+
+class NanoleafCardEditor extends LitElement {
+  static properties = { _config: { state: true } };
+
+  static styles = css`
+    .editor { display: flex; flex-direction: column; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 13px; color: var(--secondary-text-color); }
+    select {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 14px;
+    }
+    .note {
+      padding: 12px;
+      color: var(--secondary-text-color);
+      font-size: 14px;
+    }
+    .name input {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 14px;
+    }
+  `;
+
+  setConfig(config) {
+    this._config = config || {};
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this.requestUpdate();
+  }
+
+  _options(domain) {
+    return Object.keys(this._hass?.states ?? {})
+      .filter((id) => id.split('.')[0] === domain)
+      .sort();
+  }
+
+  _update(key, value) {
+    const config = { ...this._config, [key]: value };
+    if (value === '') delete config[key];
+    this._config = config;
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  render() {
+    if (!this._hass) return html``;
+    if (Array.isArray(this._config?.devices)) {
+      return html`<div class="note">
+        Multi-device config detected — edit it in YAML
+        (the visual editor handles single-device setups).
+      </div>`;
+    }
+    return html`
+      <div class="editor">
+        <div class="field name">
+          <label>Name (optional)</label>
+          <input
+            type="text"
+            .value=${this._config?.name ?? ''}
+            @input=${(e) => this._update('name', e.target.value)}
+          />
+        </div>
+        ${FIELDS.map((f) => {
+          const val = this._config?.[f.key] ?? '';
+          return html`
+            <div class="field">
+              <label>${f.label}</label>
+              <select
+                @change=${(e) => this._update(f.key, e.target.value)}
+              >
+                <option value="" ?selected=${!val}>—</option>
+                ${this._options(f.domain).map(
+                  (id) => html`
+                    <option value=${id} ?selected=${id === val}>
+                      ${id}
+                    </option>`
+                )}
+              </select>
+            </div>`;
+        })}
+      </div>`;
+  }
+}
+
+customElements.define(
+  'nanoleaf-reloaded-card-editor',
+  NanoleafCardEditor
+);
+
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'nanoleaf-reloaded-card',
   name: 'Nanoleaf Reloaded Card',
   description: 'Control panel for Nanoleaf light panels',
+  preview: true,
 });

@@ -230,3 +230,69 @@ export function valueFraction(value, min, max) {
   if (max === min) return 0;
   return Math.min(1, Math.max(0, (value - min) / (max - min)));
 }
+
+/**
+ * The seven config fields, each with a label and the entity
+ * domain it accepts. Drives both the visual editor and
+ * auto-detection.
+ */
+export const FIELDS = [
+  { key: 'light_entity', label: 'Panels (light)', domain: 'light' },
+  {
+    key: 'color_entity',
+    label: 'Base colour (light)',
+    domain: 'light',
+  },
+  {
+    key: 'layout_sensor',
+    label: 'Layout (sensor)',
+    domain: 'sensor',
+  },
+  {
+    key: 'panel_colors_entity',
+    label: 'Panel colours (sensor)',
+    domain: 'sensor',
+  },
+  {
+    key: 'pattern_entity',
+    label: 'Pattern (select)',
+    domain: 'select',
+  },
+  {
+    key: 'brightness_entity',
+    label: 'Brightness (number)',
+    domain: 'number',
+  },
+  { key: 'spread_entity', label: 'Spread (number)', domain: 'number' },
+];
+
+/**
+ * Best-effort guess of a single-device config from the entities
+ * the nanoleaf_reloaded integration created. Identifies them via
+ * hass.entities[id].platform, then assigns by domain + name hint.
+ * Unmatched fields come back as '' for the user to pick.
+ */
+export function autoDetectDevice(hass) {
+  const cfg = {};
+  for (const f of FIELDS) cfg[f.key] = '';
+  const entities = hass?.entities ?? {};
+  const states = hass?.states ?? {};
+  for (const id of Object.keys(states)) {
+    if (entities[id]?.platform !== 'nanoleaf_reloaded') continue;
+    const domain = id.split('.')[0];
+    const hint = id.toLowerCase();
+    if (domain === 'light') {
+      if (/base|color|colour/.test(hint)) cfg.color_entity = id;
+      else if (!cfg.light_entity) cfg.light_entity = id;
+    } else if (domain === 'sensor') {
+      if (/color|colour/.test(hint)) cfg.panel_colors_entity = id;
+      else if (/layout/.test(hint)) cfg.layout_sensor = id;
+    } else if (domain === 'select') {
+      if (!cfg.pattern_entity) cfg.pattern_entity = id;
+    } else if (domain === 'number') {
+      if (/spread/.test(hint)) cfg.spread_entity = id;
+      else if (/bright/.test(hint)) cfg.brightness_entity = id;
+    }
+  }
+  return cfg;
+}

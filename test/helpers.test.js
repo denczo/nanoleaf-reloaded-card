@@ -15,6 +15,7 @@ import {
   wheelKnobPos,
   valueFromPointer,
   valueFraction,
+  autoDetectDevice,
 } from '../src/helpers.js';
 
 const DEVICE = {
@@ -320,5 +321,59 @@ describe('valueFraction', () => {
 
   it('returns 0 for a zero-width range', () => {
     expect(valueFraction(5, 5, 5)).toBe(0);
+  });
+});
+
+const DETECT_HASS = {
+  entities: {
+    'light.panels': { platform: 'nanoleaf_reloaded' },
+    'light.base_color': { platform: 'nanoleaf_reloaded' },
+    'sensor.layout': { platform: 'nanoleaf_reloaded' },
+    'sensor.panel_colors': { platform: 'nanoleaf_reloaded' },
+    'select.pattern': { platform: 'nanoleaf_reloaded' },
+    'number.brightness': { platform: 'nanoleaf_reloaded' },
+    'number.spread': { platform: 'nanoleaf_reloaded' },
+    'light.living_room': { platform: 'hue' },
+  },
+  states: {
+    'light.panels': {},
+    'light.base_color': {},
+    'sensor.layout': {},
+    'sensor.panel_colors': {},
+    'select.pattern': {},
+    'number.brightness': {},
+    'number.spread': {},
+    'light.living_room': {},
+  },
+};
+
+describe('autoDetectDevice', () => {
+  it('maps each integration entity to its field', () => {
+    expect(autoDetectDevice(DETECT_HASS)).toEqual({
+      light_entity: 'light.panels',
+      color_entity: 'light.base_color',
+      layout_sensor: 'sensor.layout',
+      panel_colors_entity: 'sensor.panel_colors',
+      pattern_entity: 'select.pattern',
+      brightness_entity: 'number.brightness',
+      spread_entity: 'number.spread',
+    });
+  });
+
+  it('ignores entities from other integrations', () => {
+    const cfg = autoDetectDevice(DETECT_HASS);
+    expect(Object.values(cfg)).not.toContain('light.living_room');
+  });
+
+  it('returns all-empty fields for an empty hass', () => {
+    expect(autoDetectDevice({})).toEqual({
+      light_entity: '',
+      color_entity: '',
+      layout_sensor: '',
+      panel_colors_entity: '',
+      pattern_entity: '',
+      brightness_entity: '',
+      spread_entity: '',
+    });
   });
 });
