@@ -577,11 +577,26 @@ class NanoleafCard extends LitElement {
 
   _selectPattern(pattern) {
     const entityId = this._activeDevice.pattern_entity;
+    this._optimisticOn();
     // domain from the entity itself: select.* or input_select.*
     this._callService(entityId.split('.')[0], 'select_option', {
       entity_id: entityId,
       option: pattern,
     });
+  }
+
+  // pattern / brightness / spread push a static effect, which powers
+  // the panels on. Flip the card on immediately so the preview and
+  // power button match the hardware; cleared once HA confirms.
+  _optimisticOn() {
+    if (this._isOn) return;
+    this._powerOv = true;
+    this.requestUpdate();
+    clearTimeout(this._powerTimer);
+    this._powerTimer = setTimeout(() => {
+      this._powerOv = undefined;
+      this.requestUpdate();
+    }, 4000);
   }
 
   _renderPill(icon, state, attr, kind) {
@@ -630,6 +645,7 @@ class NanoleafCard extends LitElement {
       e.clientX, r.left, r.width, min, max, step, gamma
     );
     this._ov = { ...this._ov, [kind]: v };
+    this._optimisticOn();
     if (kind === 'brightness') this._debouncedSetBrightness(v);
     else this._debouncedSetSpread(v);
     this.requestUpdate();
