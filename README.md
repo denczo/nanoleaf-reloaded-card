@@ -98,3 +98,16 @@ reconnect_action:
   service: homeassistant.reload_config_entry
   data: { entry_id: abc123 }
 ```
+
+## Shapes & feedback
+
+> ⚠️ The preview has so far only been tested with **triangle**
+> layouts (Shapes triangles + mini-triangles). Other panel types —
+> **squares, hexagons** — use the same general rendering algorithm
+> but haven't been verified on real hardware, so the preview may be
+> off for them.
+>
+> If your preview looks wrong (or anything else misbehaves), please
+> [open an issue](https://github.com/denczo/nanoleaf-reloaded-card/issues)
+> with your panel type and a screenshot — it's the quickest way to get
+> other shapes rendering correctly.
