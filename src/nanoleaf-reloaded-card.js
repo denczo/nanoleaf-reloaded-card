@@ -448,11 +448,13 @@ class NanoleafCard extends LitElement {
     }
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
-    // constant gap inset + corner stroke (coordinate units) so the
-    // spacing is the same absolute width for big and mini panels;
-    // fatter stroke = panels fill more, tighter gap (like before)
-    const GAP = 18;
-    const STROKE = 14;
+    // gap + stroke scale to the layout's largest panel, so the
+    // spacing adapts to any panel size: an all-mini controller
+    // renders as tight as an all-big one instead of its small panels
+    // being swallowed by a fixed gap. Big-triangle layout ≈ 18 / 14.
+    const maxR = Math.max(...panels.map((p) => p.geom.radius));
+    const GAP = maxR * 0.23;
+    const STROKE = maxR * 0.18;
     // viewBox from real panel extents: each panel reaches drawR plus
     // half its stroke from its centre (rotation-invariant), so the
     // outermost panels are never clipped. Panel centre = (-x, y).
@@ -492,9 +494,9 @@ class NanoleafCard extends LitElement {
     return html`
       <svg
         viewBox="${minx} ${miny} ${vbW} ${vbH}"
-        style="display:block;width:100%;
+        style="display:block;width:100%;margin:0 auto;
                aspect-ratio:${vbW} / ${vbH};
-               pointer-events:none;"
+               max-height:300px;pointer-events:none;"
       >
         ${polygons}
       </svg>`;

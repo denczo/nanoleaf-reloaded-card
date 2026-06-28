@@ -262,7 +262,7 @@ const w=globalThis,x=t=>t,A=w.trustedTypes,S=A?A.createPolicy("lit-html",{create
             </div>
           </div>
         </div>
-      </ha-card>`}_renderSVG(t,e){const i=t?.attributes?.positionData??[],s=parseFloat(t?.attributes?.sideLength)||135,n=i.map(t=>({...t,geom:xt(t.shapeType,s)})).filter(t=>t.geom);if(!n.length)return q`<div style="height:280px"></div>`;const r=function(t){const e={};if(!t)return e;for(const i of t.split(",")){const t=i.indexOf(":");-1!==t&&(e[i.slice(0,t).trim()]=i.slice(t+1).trim())}return e}(e?.state??""),o=t=>Math.max(t.geom.radius-18,6)+7+6,a=Math.min(...n.map(t=>-t.x-o(t))),l=Math.max(...n.map(t=>-t.x+o(t))),c=Math.min(...n.map(t=>t.y-o(t))),h=Math.max(...n.map(t=>t.y+o(t))),d=n.map(t=>{const e=function(t,e){const i=parseInt(t.slice(0,2),16),s=parseInt(t.slice(2,4),16),n=parseInt(t.slice(4,6),16),r=Math.max(i,s,n);if(!e||0===r)return"rgb(77,77,77)";const o=255/r;return`rgb(${Math.round(i*o)},${Math.round(s*o)},${Math.round(n*o)})`}(r[String(t.panelId)]??"000000",this._isOn),i=function(t,e,i=1){const s=[];for(let n=0;n<e;n++){const r=(360/e*n-90)*Math.PI/180,o=(t*Math.cos(r)*i).toFixed(2),a=(t*Math.sin(r)*i).toFixed(2);s.push(`${o},${a}`)}return s.join(" ")}(Math.max(t.geom.radius-18,6),t.geom.sides);return V`
+      </ha-card>`}_renderSVG(t,e){const i=t?.attributes?.positionData??[],s=parseFloat(t?.attributes?.sideLength)||135,n=i.map(t=>({...t,geom:xt(t.shapeType,s)})).filter(t=>t.geom);if(!n.length)return q`<div style="height:280px"></div>`;const r=function(t){const e={};if(!t)return e;for(const i of t.split(",")){const t=i.indexOf(":");-1!==t&&(e[i.slice(0,t).trim()]=i.slice(t+1).trim())}return e}(e?.state??""),o=Math.max(...n.map(t=>t.geom.radius)),a=.23*o,l=.18*o,c=t=>Math.max(t.geom.radius-a,6)+l/2+6,h=Math.min(...n.map(t=>-t.x-c(t))),d=Math.max(...n.map(t=>-t.x+c(t))),p=Math.min(...n.map(t=>t.y-c(t))),u=Math.max(...n.map(t=>t.y+c(t))),_=n.map(t=>{const e=function(t,e){const i=parseInt(t.slice(0,2),16),s=parseInt(t.slice(2,4),16),n=parseInt(t.slice(4,6),16),r=Math.max(i,s,n);if(!e||0===r)return"rgb(77,77,77)";const o=255/r;return`rgb(${Math.round(i*o)},${Math.round(s*o)},${Math.round(n*o)})`}(r[String(t.panelId)]??"000000",this._isOn),i=function(t,e,i=1){const s=[];for(let n=0;n<e;n++){const r=(360/e*n-90)*Math.PI/180,o=(t*Math.cos(r)*i).toFixed(2),a=(t*Math.sin(r)*i).toFixed(2);s.push(`${o},${a}`)}return s.join(" ")}(Math.max(t.geom.radius-a,6),t.geom.sides);return V`
         <g
           data-panel-id=${t.panelId}
           transform="translate(${-t.x},${t.y})
@@ -272,17 +272,17 @@ const w=globalThis,x=t=>t,A=w.trustedTypes,S=A?A.createPolicy("lit-html",{create
             points=${i}
             fill=${e}
             stroke=${e}
-            stroke-width=${14}
+            stroke-width=${l}
             stroke-linejoin="round"
           />
-        </g>`}),p=l-a,u=h-c;return q`
+        </g>`}),g=d-h,v=u-p;return q`
       <svg
-        viewBox="${a} ${c} ${p} ${u}"
-        style="display:block;width:100%;
-               aspect-ratio:${p} / ${u};
-               pointer-events:none;"
+        viewBox="${h} ${p} ${g} ${v}"
+        style="display:block;width:100%;margin:0 auto;
+               aspect-ratio:${g} / ${v};
+               max-height:300px;pointer-events:none;"
       >
-        ${d}
+        ${_}
       </svg>`}_selectDevice(t){this._activeIndex=_t(t.target.value,this._devices.length),this._saveIndex(),this.requestUpdate()}_loadIndex(){try{return window.localStorage.getItem(this._storageKey)}catch(t){return null}}_saveIndex(){try{window.localStorage.setItem(this._storageKey,String(this._activeIndex))}catch(t){}}_reconnect(){const t=vt(this._activeDevice.reconnect_action);t&&this._callService(t.domain,t.service,t.data||{},t.target)}_togglePower(){this._powerTarget=!this._isOn,this._powerOv=this._powerTarget,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},3e3),clearTimeout(this._powerSendTimer),this._powerSendTimer=setTimeout(()=>{this._callService("light",this._powerTarget?"turn_on":"turn_off",{entity_id:this._activeDevice.light_entity})},350)}_wheelDown(t){this._wheelDragging=!0,t.target.setPointerCapture?.(t.pointerId),this._wheelApply(t)}_wheelMove(t){this._wheelDragging&&this._wheelApply(t)}_wheelUp(t){this._wheelDragging=!1,t.target.releasePointerCapture?.(t.pointerId)}_wheelApply(t){const e=t.currentTarget.getBoundingClientRect(),i=function(t,e,i){let s=180*Math.atan2(t,-e)/Math.PI;return s<0&&(s+=360),{h:s,s:i?Math.min(1,Math.hypot(t,e)/i):0}}(t.clientX-e.left-e.width/2,t.clientY-e.top-e.height/2,e.width/2);this._wheelHs=i;const s=ht(i.h,i.s);this._sentRgb=s,this._debouncedColor(s),this.requestUpdate()}_selectPattern(t){const e=this._activeDevice.pattern_entity;this._optimisticOn(),this._callService(e.split(".")[0],"select_option",{entity_id:e,option:t})}_optimisticOn(){this._isOn||(this._powerOv=!0,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},4e3))}_renderPill(t,e,i,s){const n=Number(i.min??0),r=Number(i.max??100),o=Number(i.step??1),a="spread"===s?2.2:1,l=function(t,e,i,s=1){if(i===e)return 0;const n=Math.min(1,Math.max(0,(t-e)/(i-e)));return 1===s?n:Math.pow(n,1/s)}(this._ov?.[s]??Number(e?.state??n),n,r,a);return q`
       <div
         class="pill-slider"
