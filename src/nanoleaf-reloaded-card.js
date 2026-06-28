@@ -34,9 +34,7 @@ class NanoleafCard extends LitElement {
     svg { display: block; }
     /* fade panel colours in the preview, mirroring the hardware */
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
-    /* pull the preview up into its own empty top padding so the
-       gap under the button is tighter (no content overlap) */
-    .svg-wrapper { position: relative; margin-top: -10px; }
+    .svg-wrapper { position: relative; }
     .device-bar {
       display: flex;
       justify-content: flex-end;
@@ -489,7 +487,8 @@ class NanoleafCard extends LitElement {
     return html`
       <svg
         viewBox="${minx} ${miny} ${maxx - minx} ${maxy - miny}"
-        style="width:100%;height:280px;pointer-events:none;"
+        style="width:100%;height:auto;max-height:320px;
+               pointer-events:none;"
       >
         ${polygons}
       </svg>`;
