@@ -16,6 +16,9 @@ import {
   valueFromPointer,
   valueFraction,
   autoDetectDevice,
+  autoDetectDevices,
+  panelGeometry,
+  polygonPoints,
 } from '../src/helpers.js';
 
 const DEVICE = {
@@ -375,5 +378,90 @@ describe('autoDetectDevice', () => {
       brightness_entity: '',
       spread_entity: '',
     });
+  });
+});
+
+const TWO_HASS = {
+  entities: {
+    'light.a_panels': { platform: 'nanoleaf_reloaded', device_id: 'A' },
+    'light.a_base_color': {
+      platform: 'nanoleaf_reloaded',
+      device_id: 'A',
+    },
+    'select.a_pattern': {
+      platform: 'nanoleaf_reloaded',
+      device_id: 'A',
+    },
+    'number.a_spread': { platform: 'nanoleaf_reloaded', device_id: 'A' },
+    'light.b_panels': { platform: 'nanoleaf_reloaded', device_id: 'B' },
+    'select.b_pattern': {
+      platform: 'nanoleaf_reloaded',
+      device_id: 'B',
+    },
+    'number.b_spread': { platform: 'nanoleaf_reloaded', device_id: 'B' },
+  },
+  states: {
+    'light.a_panels': {},
+    'light.a_base_color': {},
+    'select.a_pattern': {},
+    'number.a_spread': {},
+    'light.b_panels': {},
+    'select.b_pattern': {},
+    'number.b_spread': {},
+  },
+};
+
+describe('autoDetectDevices', () => {
+  it('groups into one device when there is no device_id', () => {
+    const devices = autoDetectDevices(DETECT_HASS);
+    expect(devices).toHaveLength(1);
+    expect(devices[0].light_entity).toBe('light.panels');
+  });
+
+  it('splits entities into one config per controller', () => {
+    const devices = autoDetectDevices(TWO_HASS);
+    expect(devices).toHaveLength(2);
+    const a = devices.find((d) => d.light_entity === 'light.a_panels');
+    const b = devices.find((d) => d.light_entity === 'light.b_panels');
+    expect(a.pattern_entity).toBe('select.a_pattern');
+    expect(b.spread_entity).toBe('number.b_spread');
+  });
+
+  it('returns an empty array for an empty hass', () => {
+    expect(autoDetectDevices({})).toEqual([]);
+  });
+});
+
+describe('panelGeometry', () => {
+  it('gives the right side count per shape', () => {
+    expect(panelGeometry(8, 135).sides).toBe(3);
+    expect(panelGeometry(9, 135).sides).toBe(3);
+    expect(panelGeometry(7, 135).sides).toBe(6);
+    expect(panelGeometry(2, 135).sides).toBe(4);
+  });
+
+  it('scales a mini triangle to about half a full one', () => {
+    const full = panelGeometry(8, 135).radius;
+    const mini = panelGeometry(9, 135).radius;
+    expect(mini / full).toBeCloseTo(68 / 135, 2);
+  });
+
+  it('returns null for controller / power / unknown shapes', () => {
+    expect(panelGeometry(12, 135)).toBeNull();
+    expect(panelGeometry(5, 135)).toBeNull();
+    expect(panelGeometry(99, 135)).toBeNull();
+  });
+});
+
+describe('polygonPoints', () => {
+  it('produces one point per side, apex up', () => {
+    const pts = polygonPoints(100, 3).split(' ');
+    expect(pts).toHaveLength(3);
+    expect(pts[0]).toBe('0.00,-100.00');
+  });
+
+  it('applies the scale factor k', () => {
+    const pts = polygonPoints(100, 3, 0.5).split(' ');
+    expect(pts[0]).toBe('0.00,-50.00');
   });
 });

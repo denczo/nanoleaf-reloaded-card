@@ -266,33 +266,93 @@ export const FIELDS = [
   { key: 'spread_entity', label: 'Spread (number)', domain: 'number' },
 ];
 
-/**
- * Best-effort guess of a single-device config from the entities
- * the nanoleaf_reloaded integration created. Identifies them via
- * hass.entities[id].platform, then assigns by domain + name hint.
- * Unmatched fields come back as '' for the user to pick.
- */
-export function autoDetectDevice(hass) {
+function blankDevice() {
   const cfg = {};
   for (const f of FIELDS) cfg[f.key] = '';
+  return cfg;
+}
+
+// Assign one integration entity to its field in a device config,
+// by domain + name hint.
+function assignEntity(cfg, id) {
+  const domain = id.split('.')[0];
+  const hint = id.toLowerCase();
+  if (domain === 'light') {
+    if (/base|color|colour/.test(hint)) cfg.color_entity = id;
+    else if (!cfg.light_entity) cfg.light_entity = id;
+  } else if (domain === 'sensor') {
+    if (/color|colour/.test(hint)) cfg.panel_colors_entity = id;
+    else if (/layout/.test(hint)) cfg.layout_sensor = id;
+  } else if (domain === 'select') {
+    if (!cfg.pattern_entity) cfg.pattern_entity = id;
+  } else if (domain === 'number') {
+    if (/spread/.test(hint)) cfg.spread_entity = id;
+    else if (/bright/.test(hint)) cfg.brightness_entity = id;
+  }
+}
+
+/**
+ * Auto-detect one device config per nanoleaf_reloaded controller,
+ * grouping that platform's entities by their HA device_id. Returns
+ * an array (one entry per controller); [] if none found.
+ */
+export function autoDetectDevices(hass) {
   const entities = hass?.entities ?? {};
   const states = hass?.states ?? {};
+  const groups = new Map();
   for (const id of Object.keys(states)) {
-    if (entities[id]?.platform !== 'nanoleaf_reloaded') continue;
-    const domain = id.split('.')[0];
-    const hint = id.toLowerCase();
-    if (domain === 'light') {
-      if (/base|color|colour/.test(hint)) cfg.color_entity = id;
-      else if (!cfg.light_entity) cfg.light_entity = id;
-    } else if (domain === 'sensor') {
-      if (/color|colour/.test(hint)) cfg.panel_colors_entity = id;
-      else if (/layout/.test(hint)) cfg.layout_sensor = id;
-    } else if (domain === 'select') {
-      if (!cfg.pattern_entity) cfg.pattern_entity = id;
-    } else if (domain === 'number') {
-      if (/spread/.test(hint)) cfg.spread_entity = id;
-      else if (/bright/.test(hint)) cfg.brightness_entity = id;
-    }
+    const ent = entities[id];
+    if (ent?.platform !== 'nanoleaf_reloaded') continue;
+    const dev = ent.device_id || '_single';
+    if (!groups.has(dev)) groups.set(dev, blankDevice());
+    assignEntity(groups.get(dev), id);
   }
-  return cfg;
+  return [...groups.values()];
+}
+
+/**
+ * Single-device convenience: first detected controller, or a blank
+ * config for the user to fill.
+ */
+export function autoDetectDevice(hass) {
+  return autoDetectDevices(hass)[0] ?? blankDevice();
+}
+
+// Nanoleaf shapeType → polygon. Side lengths are nominal (winleafs);
+// `null` shapes (rhythm 1, power 5, controller 12, unknown) are not
+// lights and are skipped. Base 8 (Shapes triangle) anchors scaling.
+const SHAPE_SIDES = { 0: 3, 2: 4, 3: 4, 4: 4, 7: 6, 8: 3, 9: 3 };
+const SHAPE_NOMINAL = {
+  0: 150, 2: 100, 3: 100, 4: 100, 7: 67, 8: 135, 9: 68,
+};
+const SHAPE_BASE = 135;
+
+/**
+ * Geometry for a panel: number of sides + circumradius, scaled so
+ * `baseSideLength` corresponds to a Shapes triangle. Returns null
+ * for non-light shapeTypes (controller, power supply, etc.).
+ */
+export function panelGeometry(shapeType, baseSideLength) {
+  const sides = SHAPE_SIDES[shapeType];
+  if (!sides) return null;
+  const side = (baseSideLength * SHAPE_NOMINAL[shapeType]) / SHAPE_BASE;
+  const radius = side / (2 * Math.sin(Math.PI / sides));
+  return { sides, radius };
+}
+
+/**
+ * SVG points for a regular polygon centred at the origin, apex up,
+ * scaled by `k`. For 3 sides this matches the original triangle
+ * geometry; higher symmetry shapes are unaffected by the 180° flip
+ * the renderer applies.
+ */
+export function polygonPoints(radius, sides, k = 1) {
+  const pts = [];
+  for (let i = 0; i < sides; i++) {
+    const a = ((-90 + (360 / sides) * i) * Math.PI) / 180;
+    const x = (radius * Math.cos(a) * k).toFixed(2);
+    const y = (radius * Math.sin(a) * k).toFixed(2);
+    pts.push(`${x},${y}`);
+  }
+  return pts.join(' ');
 }
