@@ -20,6 +20,8 @@ correctly. Built for the companion
 which creates all the entities the card needs. **One card controls
 one controller** — add another card for another controller.
 
+<p align="center"><img src="docs/images/nanoleaf_card.png" alt="Nanoleaf Reloaded Card controlling two controllers" width="820"><br><em>Two controllers, each on its own card</em></p>
+
 If this card brightens your dashboard, you can support its development:
 
 <p align="center"><a href="https://buymeacoffee.com/printersmind"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46"></a></p>
