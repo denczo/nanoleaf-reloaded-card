@@ -32,8 +32,14 @@ class NanoleafCard extends LitElement {
     svg { display: block; }
     /* fade panel colours in the preview, mirroring the hardware */
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
-    /* inset the preview equally from the side and bottom edges */
-    .svg-wrapper { position: relative; padding: 0 16px 16px; }
+    /* fixed-height preview, inset from the side and bottom edges;
+       the SVG inside scales its contents down to fit this box */
+    .svg-wrapper {
+      position: relative;
+      height: 260px;
+      box-sizing: border-box;
+      padding: 0 16px 16px;
+    }
     /* full-width button bar above the preview */
     .power-bar {
       padding: 0;
@@ -403,32 +409,64 @@ class NanoleafCard extends LitElement {
       .filter((p) => p.geom);
 
     if (!panels.length) {
-      return html`<div style="height:280px"></div>`;
+      return html`<div style="height:260px"></div>`;
     }
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
-    // per-panel scaling: every panel is inset by a fraction of ITS
-    // OWN radius, so big and mini shapes get the same tight relative
-    // gap at any size (a fixed gap swallows small panels). Big
-    // triangle (r≈78) → drawR≈60, stroke≈14 (the prior look).
-    const GAP_FRAC = 0.23;
-    const STROKE_FRAC = 0.18;
-    const drawRadius = (p) => p.geom.radius * (1 - GAP_FRAC);
-    const strokeOf = (p) => p.geom.radius * STROKE_FRAC;
-    // viewBox from real panel extents: each panel reaches drawR plus
-    // half its stroke from its centre (rotation-invariant), so the
-    // outermost panels are never clipped. Panel centre = (-x, y).
-    const MARGIN = 6;
-    const reach = (p) => drawRadius(p) + strokeOf(p) / 2 + MARGIN;
-    const minx = Math.min(...panels.map((p) => -p.x - reach(p)));
-    const maxx = Math.max(...panels.map((p) => -p.x + reach(p)));
-    const miny = Math.min(...panels.map((p) => p.y - reach(p)));
-    const maxy = Math.max(...panels.map((p) => p.y + reach(p)));
+    // --- Gap algorithm: shape- and scale-independent -------------
+    // Each panel is sized from the ACTUAL distance to its nearest
+    // neighbour (the layout "pitch"), not from nominal shape sizes —
+    // those rely on a reported sideLength that can mismatch the panels
+    // actually present (e.g. an all-mini controller), which shrinks
+    // every panel and blows the gaps wide open. Each panel's edges are
+    // then inset by a fixed fraction of its pitch, so the space
+    // between any two shapes is the same ratio at any size or shape.
+    const GAP_RATIO = 0.05; // gap between panels = 5% of local pitch
+    const ROUND_FRAC = 0.22; // rounded-corner stroke, fraction of drawR
+    const cx = panels.map((p) => -p.x);
+    const cy = panels.map((p) => p.y);
+    const pitchOf = (i) => {
+      let m = Infinity;
+      for (let j = 0; j < panels.length; j++) {
+        if (j === i) continue;
+        const d = Math.hypot(cx[i] - cx[j], cy[i] - cy[j]);
+        if (d < m) m = d;
+      }
+      // lone panel: fall back to its own nominal edge-to-edge pitch
+      const g = panels[i].geom;
+      return Number.isFinite(m)
+        ? m
+        : 2 * g.radius * Math.cos(Math.PI / g.sides);
+    };
+    // drawR solves: 2·inradius + stroke = pitch·(1 - GAP_RATIO), with
+    // inradius = drawR·cos(π/n) and stroke = drawR·ROUND_FRAC. This
+    // yields the same gap ratio for triangles, squares, hexagons, …
+    const geomOf = panels.map((p, i) => {
+      const cos = Math.cos(Math.PI / p.geom.sides);
+      const drawR =
+        (pitchOf(i) * (1 - GAP_RATIO)) / (2 * cos + ROUND_FRAC);
+      const stroke = drawR * ROUND_FRAC;
+      return { drawR, stroke, reach: drawR + stroke / 2 };
+    });
+    // viewBox tightly bounds the painted panels (centre = (-x, y));
+    // the wrapper's CSS padding supplies the breathing room.
+    const minx = Math.min(
+      ...panels.map((p, i) => cx[i] - geomOf[i].reach)
+    );
+    const maxx = Math.max(
+      ...panels.map((p, i) => cx[i] + geomOf[i].reach)
+    );
+    const miny = Math.min(
+      ...panels.map((p, i) => cy[i] - geomOf[i].reach)
+    );
+    const maxy = Math.max(
+      ...panels.map((p, i) => cy[i] + geomOf[i].reach)
+    );
 
-    const polygons = panels.map((p) => {
+    const polygons = panels.map((p, i) => {
       const hex = panelColors[String(p.panelId)] ?? '000000';
       const fill = resolveColor(hex, this._isOn);
-      const pts = polygonPoints(drawRadius(p), p.geom.sides);
+      const pts = polygonPoints(geomOf[i].drawR, p.geom.sides);
       return svg`
         <g
           data-panel-id=${p.panelId}
@@ -439,7 +477,7 @@ class NanoleafCard extends LitElement {
             points=${pts}
             fill=${fill}
             stroke=${fill}
-            stroke-width=${strokeOf(p)}
+            stroke-width=${geomOf[i].stroke}
             stroke-linejoin="round"
           />
         </g>`;
@@ -447,12 +485,15 @@ class NanoleafCard extends LitElement {
 
     const vbW = maxx - minx;
     const vbH = maxy - miny;
+    // Fixed-height viewport: the SVG fills the wrapper and scales its
+    // contents to fit (preserveAspectRatio meet), so every controller's
+    // preview is the same height and a larger construct is scaled down.
     return html`
       <svg
         viewBox="${minx} ${miny} ${vbW} ${vbH}"
-        style="display:block;width:100%;margin:0 auto;
-               aspect-ratio:${vbW} / ${vbH};
-               max-height:300px;pointer-events:none;"
+        preserveAspectRatio="xMidYMid meet"
+        style="display:block;width:100%;height:100%;
+               pointer-events:none;"
       >
         ${polygons}
       </svg>`;
