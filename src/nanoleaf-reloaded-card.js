@@ -23,6 +23,10 @@ import {
 
 const PATTERNS = ['solid', 'linear', 'radial', 'rainbow'];
 
+// Spread slider curve: >1 gives finer control at the low end where
+// subtle gradients live (log-style feel). Brightness stays linear.
+const SPREAD_GAMMA = 2.2;
+
 class NanoleafCard extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -539,8 +543,9 @@ class NanoleafCard extends LitElement {
     const min = Number(attr.min ?? 0);
     const max = Number(attr.max ?? 100);
     const step = Number(attr.step ?? 1);
+    const gamma = kind === 'spread' ? SPREAD_GAMMA : 1;
     const val = this._ov?.[kind] ?? Number(state?.state ?? min);
-    const frac = valueFraction(val, min, max);
+    const frac = valueFraction(val, min, max, gamma);
     return html`
       <div
         class="pill-slider"
@@ -575,8 +580,9 @@ class NanoleafCard extends LitElement {
 
   _pillApply(e, min, max, step, kind) {
     const r = e.currentTarget.getBoundingClientRect();
+    const gamma = kind === 'spread' ? SPREAD_GAMMA : 1;
     const v = valueFromPointer(
-      e.clientX, r.left, r.width, min, max, step
+      e.clientX, r.left, r.width, min, max, step, gamma
     );
     this._ov = { ...this._ov, [kind]: v };
     if (kind === 'brightness') this._debouncedSetBrightness(v);

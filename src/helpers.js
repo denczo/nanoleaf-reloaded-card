@@ -212,23 +212,29 @@ export function wheelKnobPos(h, s, radius) {
 
 /**
  * Stepped, clamped slider value from a horizontal pointer.
+ * gamma > 1 weights the low end (more travel for small values),
+ * giving a log-style feel; gamma 1 is linear.
  */
 export function valueFromPointer(
-  clientX, rectLeft, rectWidth, min, max, step
+  clientX, rectLeft, rectWidth, min, max, step, gamma = 1
 ) {
   const t = rectWidth ? (clientX - rectLeft) / rectWidth : 0;
   const frac = Math.min(1, Math.max(0, t));
-  const raw = min + frac * (max - min);
+  const curved = gamma === 1 ? frac : Math.pow(frac, gamma);
+  const raw = min + curved * (max - min);
   const stepped = step ? Math.round(raw / step) * step : raw;
   return Math.min(max, Math.max(min, stepped));
 }
 
 /**
- * Fill fraction (0-1) of a slider value within [min, max].
+ * Fill fraction (0-1) of a slider value within [min, max]. The
+ * inverse of valueFromPointer's gamma curve, so the fill tracks
+ * the pointer mapping.
  */
-export function valueFraction(value, min, max) {
+export function valueFraction(value, min, max, gamma = 1) {
   if (max === min) return 0;
-  return Math.min(1, Math.max(0, (value - min) / (max - min)));
+  const frac = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  return gamma === 1 ? frac : Math.pow(frac, 1 / gamma);
 }
 
 /**

@@ -313,6 +313,14 @@ describe('valueFromPointer', () => {
     expect(valueFromPointer(-20, 0, 100, 0, 100, 1)).toBe(0);
     expect(valueFromPointer(200, 0, 100, 0, 100, 1)).toBe(100);
   });
+
+  it('weights the low end with gamma > 1', () => {
+    // gamma 2: midpoint of the track -> 0.25 of the range
+    expect(valueFromPointer(50, 0, 100, 0, 360, 1, 2)).toBe(90);
+    // ends still hit min and max
+    expect(valueFromPointer(0, 0, 100, 0, 360, 1, 2)).toBe(0);
+    expect(valueFromPointer(100, 0, 100, 0, 360, 1, 2)).toBe(360);
+  });
 });
 
 describe('valueFraction', () => {
@@ -324,6 +332,11 @@ describe('valueFraction', () => {
 
   it('returns 0 for a zero-width range', () => {
     expect(valueFraction(5, 5, 5)).toBe(0);
+  });
+
+  it('inverts the gamma curve so the fill tracks the pointer', () => {
+    // value 90 of 0..360 with gamma 2 sits at the 0.5 mark
+    expect(valueFraction(90, 0, 360, 2)).toBeCloseTo(0.5);
   });
 });
 
