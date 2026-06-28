@@ -34,7 +34,9 @@ class NanoleafCard extends LitElement {
     svg { display: block; }
     /* fade panel colours in the preview, mirroring the hardware */
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
-    .svg-wrapper { position: relative; }
+    /* pull the preview up into its own empty top padding so the
+       gap under the button is tighter (no content overlap) */
+    .svg-wrapper { position: relative; margin-top: -10px; }
     .device-bar {
       display: flex;
       justify-content: flex-end;
@@ -48,26 +50,26 @@ class NanoleafCard extends LitElement {
       padding: 4px 8px;
       font-size: 14px;
     }
-    /* full-width bar, button centred, preview sits below it */
+    /* full-width button bar above the preview */
     .power-bar {
-      display: flex;
-      justify-content: center;
-      padding: 6px 0 0;
+      padding: 0;
     }
     .power-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: none;
-      border-radius: 50%;
       cursor: pointer;
-      /* matches the original button-card: 28px icon, 8px 12px pad */
-      padding: 8px 12px;
-      transition: transform 0.12s ease, background 0.15s ease;
+      padding: 6px 0;
+      transition: background 0.15s ease;
     }
     .power-btn:hover {
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
     }
     .power-btn:active {
-      transform: scale(0.86);
+      background: rgba(255,255,255,0.12);
     }
     .power-btn ha-icon {
       --mdc-icon-size: 28px;
