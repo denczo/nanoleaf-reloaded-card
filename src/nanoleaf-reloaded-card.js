@@ -32,6 +32,8 @@ class NanoleafCard extends LitElement {
     :host { display: block; }
     ha-card { overflow: hidden; padding: 0; }
     svg { display: block; }
+    /* fade panel colours in the preview, mirroring the hardware */
+    svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
     .svg-wrapper { position: relative; }
     .device-bar {
       display: flex;
@@ -46,18 +48,17 @@ class NanoleafCard extends LitElement {
       padding: 4px 8px;
       font-size: 14px;
     }
+    /* original: top-right (flex-end), preview overlaps under it */
     .power-btn {
       position: absolute;
-      top: 8px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 4px;
+      right: 8px;
       z-index: 2;
       background: none;
       border: none;
       border-radius: 50%;
       cursor: pointer;
-      /* old button-card: padding 8px 12px around a 28px icon, so
-         the clickable button is wider than the icon itself */
+      /* matches the original button-card: 28px icon, 8px 12px pad */
       padding: 8px 12px;
       transition: transform 0.12s ease, background 0.15s ease;
     }
@@ -65,7 +66,7 @@ class NanoleafCard extends LitElement {
       background: rgba(255,255,255,0.1);
     }
     .power-btn:active {
-      transform: translateX(-50%) scale(0.86);
+      transform: scale(0.86);
     }
     .power-btn ha-icon {
       --mdc-icon-size: 28px;
@@ -90,6 +91,8 @@ class NanoleafCard extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
+      /* a little breathing room above/below the dial */
+      padding: 8px 0;
     }
     .color-wheel {
       position: relative;
@@ -270,7 +273,10 @@ class NanoleafCard extends LitElement {
     }
     if (this._powerOv !== undefined) {
       const on = hass.states[d.light_entity]?.state === 'on';
-      if (on === this._powerOv) this._powerOv = undefined;
+      if (on === this._powerOv) {
+        this._powerOv = undefined;
+        clearTimeout(this._powerTimer);
+      }
     }
   }
 
@@ -439,9 +445,10 @@ class NanoleafCard extends LitElement {
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
     // constant gap inset + corner stroke (coordinate units) so the
-    // spacing is the same absolute width for big and mini panels
-    const GAP = 19;
-    const STROKE = 10;
+    // spacing is the same absolute width for big and mini panels;
+    // fatter stroke = panels fill more, tighter gap (like before)
+    const GAP = 18;
+    const STROKE = 14;
     const padx = s / 1.5;
     const pady = s / 6;
     const xs = panels.map((p) => p.x);
@@ -518,9 +525,16 @@ class NanoleafCard extends LitElement {
   }
 
   _togglePower() {
-    // flip immediately (optimistic), reconcile when HA confirms
+    // flip immediately (optimistic), reconcile when HA confirms.
+    // Fail-safe: revert to the real state if not confirmed in 3s so
+    // the icon can never get stuck on a wrong value.
     this._powerOv = !this._isOn;
     this.requestUpdate();
+    clearTimeout(this._powerTimer);
+    this._powerTimer = setTimeout(() => {
+      this._powerOv = undefined;
+      this.requestUpdate();
+    }, 3000);
     this._callService('light', 'toggle', {
       entity_id: this._activeDevice.light_entity,
     });
