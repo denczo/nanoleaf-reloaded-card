@@ -54,10 +54,18 @@ class NanoleafCard extends LitElement {
       z-index: 2;
       background: none;
       border: none;
+      border-radius: 50%;
       cursor: pointer;
       /* old button-card: padding 8px 12px around a 28px icon, so
          the clickable button is wider than the icon itself */
       padding: 8px 12px;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .power-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .power-btn:active {
+      transform: translateX(-50%) scale(0.86);
     }
     .power-btn ha-icon {
       --mdc-icon-size: 28px;
@@ -66,24 +74,27 @@ class NanoleafCard extends LitElement {
       background: rgba(255,255,255,0.05);
       border-radius: 12px;
       margin: 0 12px 12px;
-      padding: 12px;
+      /* less vertical padding so the dial fills more height */
+      padding: 6px 12px;
     }
-    /* wheel column : controls column = 1 : 1, vertically centred */
+    /* dial column : sliders column = 1 : 2; stretch so both
+       columns are full height and the dial centres within it */
     .color-row {
       display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 8px 0;
+      align-items: stretch;
+      gap: 12px;
+      padding: 0;
     }
     .wheel-wrap {
       flex: 1;
       display: flex;
+      align-items: center;
       justify-content: center;
     }
     .color-wheel {
       position: relative;
       width: 100%;
-      max-width: 140px;
+      max-width: 160px;
       aspect-ratio: 1 / 1;
       border-radius: 50%;
       touch-action: none;
@@ -109,7 +120,7 @@ class NanoleafCard extends LitElement {
       pointer-events: none;
     }
     .right-col {
-      flex: 1;
+      flex: 2;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -257,6 +268,10 @@ class NanoleafCard extends LitElement {
         this._wheelHs = undefined;
       }
     }
+    if (this._powerOv !== undefined) {
+      const on = hass.states[d.light_entity]?.state === 'on';
+      if (on === this._powerOv) this._powerOv = undefined;
+    }
   }
 
   get _activeDevice() {
@@ -264,6 +279,8 @@ class NanoleafCard extends LitElement {
   }
 
   get _isOn() {
+    // optimistic override so the power state flips instantly on tap
+    if (this._powerOv !== undefined) return this._powerOv;
     return (
       this._hass?.states[this._activeDevice?.light_entity]?.state ===
       'on'
@@ -421,7 +438,10 @@ class NanoleafCard extends LitElement {
     }
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
-    const k = 0.75;
+    // constant gap inset + corner stroke (coordinate units) so the
+    // spacing is the same absolute width for big and mini panels
+    const GAP = 19;
+    const STROKE = 10;
     const padx = s / 1.5;
     const pady = s / 6;
     const xs = panels.map((p) => p.x);
@@ -434,10 +454,10 @@ class NanoleafCard extends LitElement {
     const polygons = panels.map((p) => {
       const hex = panelColors[String(p.panelId)] ?? '000000';
       const fill = resolveColor(hex, this._isOn);
-      const pts = polygonPoints(p.geom.radius, p.geom.sides, k);
-      // stroke scales with panel size so small panels keep the
-      // same relative gap as the big ones (~15 for a full triangle)
-      const stroke = (p.geom.radius * 0.19).toFixed(1);
+      // shrink each panel by the same absolute GAP, not a ratio,
+      // so the dark spacing is uniform across panel sizes
+      const drawR = Math.max(p.geom.radius - GAP, 6);
+      const pts = polygonPoints(drawR, p.geom.sides);
       return svg`
         <g
           data-panel-id=${p.panelId}
@@ -448,7 +468,7 @@ class NanoleafCard extends LitElement {
             points=${pts}
             fill=${fill}
             stroke=${fill}
-            stroke-width=${stroke}
+            stroke-width=${STROKE}
             stroke-linejoin="round"
           />
         </g>`;
@@ -498,6 +518,9 @@ class NanoleafCard extends LitElement {
   }
 
   _togglePower() {
+    // flip immediately (optimistic), reconcile when HA confirms
+    this._powerOv = !this._isOn;
+    this.requestUpdate();
     this._callService('light', 'toggle', {
       entity_id: this._activeDevice.light_entity,
     });
