@@ -1,86 +1,98 @@
 # Nanoleaf Reloaded Card
 
-Custom Lovelace card for Home Assistant.
-Displays your Nanoleaf panel layout and lets you control
-power, colour, pattern, brightness, and spread from one card.
-No HACS card dependencies.
+<p align="center">
+  <a href="https://github.com/denczo/nanoleaf-reloaded-card/releases/latest"><img src="https://img.shields.io/github/v/release/denczo/nanoleaf-reloaded-card" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Home%20Assistant-Lovelace-41BDF5?logo=home-assistant&logoColor=white" alt="Home Assistant Lovelace">
+  <img src="https://img.shields.io/badge/HACS-custom-41BDF5" alt="HACS custom">
+</p>
 
-## Installation
+<p align="center"><b>Jump to:</b> <a href="#-install">📦 Install</a> · <a href="#%EF%B8%8F-setup">⚙️ Setup</a> · <a href="#-configuration">🔧 Configuration</a></p>
 
-### Manual (homelab)
+Custom Lovelace card for Home Assistant that draws your **actual
+Nanoleaf panel layout** and controls power, colour, pattern,
+brightness, and spread — all from one card. No HACS card
+dependencies, no manual YAML.
 
-1. Copy `dist/nanoleaf-reloaded-card.js` to `config/www/nanoleaf-reloaded-card.js`
-2. In HA: Settings → Dashboards → Resources →
-   Add `/local/nanoleaf-reloaded-card.js` (JavaScript module)
+The preview renders every panel shape at its real size and position,
+so triangles, mini-triangles, squares, and hexagons all show up
+correctly. Built for the companion
+[Nanoleaf Reloaded integration](https://github.com/denczo/nanoleaf-reloaded),
+which creates all the entities the card needs. **One card controls
+one controller** — add another card for another controller.
 
-### Via HACS custom repo
+If this card brightens your dashboard, you can support its development:
 
-Add this repository URL in HACS → Frontend → Custom repositories.
+<p align="center"><a href="https://buymeacoffee.com/printersmind"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46"></a></p>
 
-## Configuration
+## 📦 Install
 
-### Single device
+### Via HACS (recommended)
+
+1. HACS → ⋮ → **Custom repositories** → add this repo, category
+   **Dashboard**.
+2. Install, then hard-refresh the browser (clear the service worker
+   if the old version sticks).
+
+### Manual
+
+1. Copy `dist/nanoleaf-reloaded-card.js` to `config/www/`.
+2. Settings → Dashboards → **Resources** → add
+   `/local/nanoleaf-reloaded-card.js` as a **JavaScript module**.
+
+## ⚙️ Setup
+
+1. Install the
+   [Nanoleaf Reloaded integration](https://github.com/denczo/nanoleaf-reloaded)
+   and pair your controller.
+2. Add the card to a dashboard — the visual editor opens.
+3. Pick your controller from the **Controller** dropdown; it
+   auto-fills every entity. Save.
+4. For a second controller, add **another card** and pick that
+   controller.
+
+## 🔧 Configuration
+
+The visual editor is the easy path — the Controller dropdown fills
+everything in. The YAML it produces:
 
 ```yaml
 type: custom:nanoleaf-reloaded-card
-light_entity: light.nanoleaf
+light_entity: light.nanoleaf_panels
 color_entity: light.nanoleaf_base_color
 layout_sensor: sensor.nanoleaf_layout
-panel_colors_entity: input_text.nanoleaf_panel_colors
-pattern_entity: input_select.nanoleaf_pattern
-brightness_entity: input_number.nanoleaf_brightness
-spread_entity: input_number.nanoleaf_spread
+panel_colors_entity: sensor.nanoleaf_panel_colors
+pattern_entity: select.nanoleaf_pattern
+brightness_entity: number.nanoleaf_brightness
+spread_entity: number.nanoleaf_spread
+name: Living Room # optional
 ```
 
-### Multiple devices
+Add one card per controller.
 
-Configure several controllers under `devices`; the card shows a
-picker in its header and controls one device at a time. Each entry
-takes the same seven keys plus an optional `name` and
-`reconnect_action`. (The single-device form above still works.)
-The card remembers your last-selected device per browser across
-reloads.
+### Entities
 
-```yaml
-type: custom:nanoleaf-reloaded-card
-devices:
-  - name: Living Room
-    light_entity: light.nanoleaf_lr
-    color_entity: light.nanoleaf_lr_base_color
-    layout_sensor: sensor.nanoleaf_lr_layout
-    panel_colors_entity: input_text.nanoleaf_lr_panel_colors
-    pattern_entity: input_select.nanoleaf_lr_pattern
-    brightness_entity: input_number.nanoleaf_lr_brightness
-    spread_entity: input_number.nanoleaf_lr_spread
-    reconnect_action:                 # optional
-      service: homeassistant.reload_config_entry
-      data: { entry_id: abc123 }
-  - name: Office
-    light_entity: light.nanoleaf_office
-    color_entity: light.nanoleaf_office_base_color
-    layout_sensor: sensor.nanoleaf_office_layout
-    panel_colors_entity: input_text.nanoleaf_office_panel_colors
-    pattern_entity: input_select.nanoleaf_office_pattern
-    brightness_entity: input_number.nanoleaf_office_brightness
-    spread_entity: input_number.nanoleaf_office_spread
-```
+All provided by the Nanoleaf Reloaded integration and auto-detected
+by the editor:
+
+| Key | Entity | Purpose |
+|---|---|---|
+| `light_entity` | `light.*_panels` | power + brightness |
+| `color_entity` | `light.*_base_color` | pattern source colour |
+| `layout_sensor` | `sensor.*_layout` | panel positions (the preview) |
+| `panel_colors_entity` | `sensor.*_panel_colors` | per-panel colours |
+| `pattern_entity` | `select.*_pattern` | solid / linear / radial / rainbow |
+| `brightness_entity` | `number.*_brightness` | brightness 0–100 |
+| `spread_entity` | `number.*_spread` | hue spread 0–360° |
 
 ## Offline handling
 
-When a device's `light_entity` becomes `unavailable`, the card
-shows an "unreachable" state instead of broken controls, and
-returns to normal automatically when the device comes back. If a
-`reconnect_action` is set for that device, a **Reconnect** button
-calls it (any HA service — `homeassistant.reload_config_entry`,
-a `script.*`, a `rest_command.*`, …). In the device picker, an
-offline device is marked with `●`.
+When the `light_entity` becomes `unavailable`, the card shows an
+"unreachable" state instead of broken controls and recovers
+automatically when the device returns. An optional `reconnect_action`
+adds a **Reconnect** button that calls any HA service:
 
-## Required HA helpers
-
-| Entity | Type | Purpose |
-|---|---|---|
-| `sensor.nanoleaf_layout` | REST sensor | Panel positions |
-| `input_text.nanoleaf_panel_colors` | Helper | Per-panel hex colours |
-| `input_select.nanoleaf_pattern` | Helper | Solid/Linear/Radial/Rainbow |
-| `input_number.nanoleaf_brightness` | Helper | Brightness 0–100 |
-| `input_number.nanoleaf_spread` | Helper | Spread/radius |
+```yaml
+reconnect_action:
+  service: homeassistant.reload_config_entry
+  data: { entry_id: abc123 }
+```
