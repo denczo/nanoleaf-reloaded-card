@@ -484,10 +484,13 @@ class NanoleafCard extends LitElement {
         </g>`;
     });
 
+    const vbW = maxx - minx;
+    const vbH = maxy - miny;
     return html`
       <svg
-        viewBox="${minx} ${miny} ${maxx - minx} ${maxy - miny}"
-        style="width:100%;height:auto;max-height:320px;
+        viewBox="${minx} ${miny} ${vbW} ${vbH}"
+        style="display:block;width:100%;
+               aspect-ratio:${vbW} / ${vbH};
                pointer-events:none;"
       >
         ${polygons}
