@@ -1,6 +1,7 @@
 {
   "name": "nanoleaf-reloaded-card",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "rollup -c",

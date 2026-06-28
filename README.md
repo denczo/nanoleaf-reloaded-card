@@ -4,6 +4,7 @@
   <a href="https://github.com/denczo/nanoleaf-reloaded-card/releases/latest"><img src="https://img.shields.io/github/v/release/denczo/nanoleaf-reloaded-card" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-Lovelace-41BDF5?logo=home-assistant&logoColor=white" alt="Home Assistant Lovelace">
   <img src="https://img.shields.io/badge/HACS-custom-41BDF5" alt="HACS custom">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
 </p>
 
 <p align="center"><b>Jump to:</b> <a href="#-install">📦 Install</a> · <a href="#%EF%B8%8F-setup">⚙️ Setup</a> · <a href="#-configuration">🔧 Configuration</a></p>
