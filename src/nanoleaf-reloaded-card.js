@@ -45,12 +45,18 @@ class NanoleafCard extends LitElement {
     .power-btn {
       position: absolute;
       top: 8px;
-      right: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 2;
       background: none;
       border: none;
       cursor: pointer;
-      padding: 8px;
+      /* old button-card: padding 8px 12px around a 28px icon, so
+         the clickable button is wider than the icon itself */
+      padding: 8px 12px;
+    }
+    .power-btn ha-icon {
+      --mdc-icon-size: 28px;
     }
     .controls {
       background: rgba(255,255,255,0.05);
@@ -58,21 +64,23 @@ class NanoleafCard extends LitElement {
       margin: 0 12px 12px;
       padding: 12px;
     }
+    /* wheel column : controls column = 1 : 1, vertically centred */
     .color-row {
       display: flex;
-      height: 150px;
-      gap: 12px;
-      align-items: stretch;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 0;
     }
     .wheel-wrap {
-      flex: none;
+      flex: 1;
       display: flex;
-      align-items: center;
+      justify-content: center;
     }
     .color-wheel {
       position: relative;
-      width: 130px;
-      height: 130px;
+      width: 100%;
+      max-width: 140px;
+      aspect-ratio: 1 / 1;
       border-radius: 50%;
       touch-action: none;
       cursor: pointer;
@@ -317,7 +325,9 @@ class NanoleafCard extends LitElement {
       rgbToHs(
         ...(colorState?.attributes?.rgb_color ?? [128, 128, 128])
       );
-    const knob = wheelKnobPos(hs.h, hs.s, 65);
+    // unit offsets (-1..1) so the knob is positioned as a % of the
+    // wheel — works at any responsive wheel size
+    const knob = wheelKnobPos(hs.h, hs.s, 1);
     const swatch = hsToRgb(hs.h, hs.s);
 
     return html`
@@ -352,9 +362,9 @@ class NanoleafCard extends LitElement {
               >
                 <div
                   class="wheel-knob"
-                  style="left:${65 + knob.x}px;top:${
-                    65 + knob.y
-                  }px;background:rgb(${swatch.join(',')})"
+                  style="left:${50 + knob.x * 50}%;top:${
+                    50 + knob.y * 50
+                  }%;background:rgb(${swatch.join(',')})"
                 ></div>
               </div>
             </div>
@@ -421,6 +431,9 @@ class NanoleafCard extends LitElement {
       const hex = panelColors[String(p.panelId)] ?? '000000';
       const fill = resolveColor(hex, this._isOn);
       const pts = polygonPoints(p.geom.radius, p.geom.sides, k);
+      // stroke scales with panel size so small panels keep the
+      // same relative gap as the big ones (~15 for a full triangle)
+      const stroke = (p.geom.radius * 0.19).toFixed(1);
       return svg`
         <g
           data-panel-id=${p.panelId}
@@ -431,7 +444,7 @@ class NanoleafCard extends LitElement {
             points=${pts}
             fill=${fill}
             stroke=${fill}
-            stroke-width="15"
+            stroke-width=${stroke}
             stroke-linejoin="round"
           />
         </g>`;
