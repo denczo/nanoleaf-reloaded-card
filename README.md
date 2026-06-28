@@ -15,13 +15,23 @@ brightness, and spread — all from one card. No HACS card
 dependencies, no manual YAML.
 
 The preview renders every panel shape at its real size and position,
-so triangles, mini-triangles, squares, and hexagons all show up
-correctly. Built for the companion
+so triangles, mini-triangles, squares, and hexagons are all drawn
+from your real layout. Built for the companion
 [Nanoleaf Reloaded integration](https://github.com/denczo/nanoleaf-reloaded),
 which creates all the entities the card needs. **One card controls
 one controller** — add another card for another controller.
 
 <p align="center"><img src="docs/images/nanoleaf_card.png" alt="Nanoleaf Reloaded Card controlling two controllers" width="820"><br><em>Two controllers, each on its own card</em></p>
+
+> ⚠️ The preview has so far only been tested with **triangle**
+> layouts (Shapes triangles + mini-triangles). Other panel types —
+> **squares, hexagons** — use the same general rendering algorithm
+> but haven't been verified on real hardware, so the preview may be
+> off for them. If your preview looks wrong (or anything else
+> misbehaves), please
+> [open an issue](https://github.com/denczo/nanoleaf-reloaded-card/issues)
+> with your panel type and a screenshot — it's the quickest way to get
+> other shapes rendering correctly.
 
 If this card brightens your dashboard, you can support its development:
 
@@ -99,16 +109,3 @@ reconnect_action:
   service: homeassistant.reload_config_entry
   data: { entry_id: abc123 }
 ```
-
-## Shapes & feedback
-
-> ⚠️ The preview has so far only been tested with **triangle**
-> layouts (Shapes triangles + mini-triangles). Other panel types —
-> **squares, hexagons** — use the same general rendering algorithm
-> but haven't been verified on real hardware, so the preview may be
-> off for them.
->
-> If your preview looks wrong (or anything else misbehaves), please
-> [open an issue](https://github.com/denczo/nanoleaf-reloaded-card/issues)
-> with your panel type and a screenshot — it's the quickest way to get
-> other shapes rendering correctly.
