@@ -8,8 +8,6 @@ import {
   debounce,
   isDeviceOffline,
   parseAction,
-  deviceStorageKey,
-  clampIndex,
   hsFromWheel,
   wheelKnobPos,
   valueFromPointer,
@@ -36,19 +34,6 @@ class NanoleafCard extends LitElement {
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
     /* inset the preview equally from the side and bottom edges */
     .svg-wrapper { position: relative; padding: 0 16px 16px; }
-    .device-bar {
-      display: flex;
-      justify-content: flex-end;
-      padding: 8px 12px 0;
-    }
-    .device-select {
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      border: 1px solid var(--divider-color);
-      border-radius: 8px;
-      padding: 4px 8px;
-      font-size: 14px;
-    }
     /* full-width button bar above the preview */
     .power-bar {
       padding: 0;
@@ -205,23 +190,16 @@ class NanoleafCard extends LitElement {
     return document.createElement('nanoleaf-reloaded-card-editor');
   }
 
-  // Pre-fill the config by auto-detecting integration entities, so
-  // adding the card shows populated fields. One controller → flat
-  // config; two or more → a devices: array.
+  // One card controls one controller; pre-fill with the first
+  // detected controller. Add another card for another controller.
   static getStubConfig(hass) {
-    const devices = autoDetectDevices(hass);
-    if (devices.length > 1) return { devices };
     return autoDetectDevice(hass);
   }
 
   setConfig(config) {
     this._devices = normalizeDevices(config);
     this._config = config;
-    this._storageKey = deviceStorageKey(this._devices);
-    this._activeIndex = clampIndex(
-      this._loadIndex(),
-      this._devices.length
-    );
+    this._activeIndex = 0;
     this._debouncedSetBrightness = debounce(
       (v) => this._setValue(this._activeDevice.brightness_entity, v),
       150
@@ -295,23 +273,6 @@ class NanoleafCard extends LitElement {
     );
   }
 
-  _renderPicker() {
-    if (!this._devices || this._devices.length < 2) return '';
-    return html`
-      <div class="device-bar">
-        <select class="device-select" @change=${this._selectDevice}>
-          ${this._devices.map(
-            (dev, i) => html`
-              <option value=${i} ?selected=${i === this._activeIndex}>
-                ${dev.name || dev.light_entity}${
-                  isDeviceOffline(this._hass, dev) ? ' ●' : ''
-                }
-              </option>`
-          )}
-        </select>
-      </div>`;
-  }
-
   render() {
     if (!this._hass || !this._config) return html``;
     const d = this._activeDevice;
@@ -320,7 +281,6 @@ class NanoleafCard extends LitElement {
       const action = parseAction(d.reconnect_action);
       return html`
         <ha-card>
-          ${this._renderPicker()}
           <div class="offline">
             <ha-icon icon="mdi:lan-disconnect"></ha-icon>
             <div class="offline-msg">
@@ -361,7 +321,6 @@ class NanoleafCard extends LitElement {
 
     return html`
       <ha-card>
-        ${this._renderPicker()}
         <div class="power-bar">
           <button
             class="power-btn"
@@ -448,19 +407,19 @@ class NanoleafCard extends LitElement {
     }
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
-    // gap + stroke scale to the layout's largest panel, so the
-    // spacing adapts to any panel size: an all-mini controller
-    // renders as tight as an all-big one instead of its small panels
-    // being swallowed by a fixed gap. Big-triangle layout ≈ 18 / 14.
-    const maxR = Math.max(...panels.map((p) => p.geom.radius));
-    const GAP = maxR * 0.23;
-    const STROKE = maxR * 0.18;
+    // per-panel scaling: every panel is inset by a fraction of ITS
+    // OWN radius, so big and mini shapes get the same tight relative
+    // gap at any size (a fixed gap swallows small panels). Big
+    // triangle (r≈78) → drawR≈60, stroke≈14 (the prior look).
+    const GAP_FRAC = 0.23;
+    const STROKE_FRAC = 0.18;
+    const drawRadius = (p) => p.geom.radius * (1 - GAP_FRAC);
+    const strokeOf = (p) => p.geom.radius * STROKE_FRAC;
     // viewBox from real panel extents: each panel reaches drawR plus
     // half its stroke from its centre (rotation-invariant), so the
     // outermost panels are never clipped. Panel centre = (-x, y).
     const MARGIN = 6;
-    const reach = (p) =>
-      Math.max(p.geom.radius - GAP, 6) + STROKE / 2 + MARGIN;
+    const reach = (p) => drawRadius(p) + strokeOf(p) / 2 + MARGIN;
     const minx = Math.min(...panels.map((p) => -p.x - reach(p)));
     const maxx = Math.max(...panels.map((p) => -p.x + reach(p)));
     const miny = Math.min(...panels.map((p) => p.y - reach(p)));
@@ -469,10 +428,7 @@ class NanoleafCard extends LitElement {
     const polygons = panels.map((p) => {
       const hex = panelColors[String(p.panelId)] ?? '000000';
       const fill = resolveColor(hex, this._isOn);
-      // shrink each panel by the same absolute GAP, not a ratio,
-      // so the dark spacing is uniform across panel sizes
-      const drawR = Math.max(p.geom.radius - GAP, 6);
-      const pts = polygonPoints(drawR, p.geom.sides);
+      const pts = polygonPoints(drawRadius(p), p.geom.sides);
       return svg`
         <g
           data-panel-id=${p.panelId}
@@ -483,7 +439,7 @@ class NanoleafCard extends LitElement {
             points=${pts}
             fill=${fill}
             stroke=${fill}
-            stroke-width=${STROKE}
+            stroke-width=${strokeOf(p)}
             stroke-linejoin="round"
           />
         </g>`;
@@ -500,34 +456,6 @@ class NanoleafCard extends LitElement {
       >
         ${polygons}
       </svg>`;
-  }
-
-  _selectDevice(e) {
-    this._activeIndex = clampIndex(
-      e.target.value,
-      this._devices.length
-    );
-    this._saveIndex();
-    this.requestUpdate();
-  }
-
-  _loadIndex() {
-    try {
-      return window.localStorage.getItem(this._storageKey);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  _saveIndex() {
-    try {
-      window.localStorage.setItem(
-        this._storageKey,
-        String(this._activeIndex)
-      );
-    } catch (e) {
-      /* storage unavailable — selection just won't persist */
-    }
   }
 
   _reconnect() {
@@ -681,23 +609,13 @@ class NanoleafCardEditor extends LitElement {
 
   static styles = css`
     .editor { display: flex; flex-direction: column; gap: 12px; }
-    .device-block {
-      border: 1px solid var(--divider-color);
-      border-radius: 10px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .device-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-      color: var(--primary-text-color);
-    }
     .field { display: flex; flex-direction: column; gap: 4px; }
     label { font-size: 13px; color: var(--secondary-text-color); }
+    .hint {
+      font-size: 12px;
+      color: var(--secondary-text-color);
+      margin-top: -6px;
+    }
     select,
     input[type='text'] {
       padding: 8px;
@@ -706,20 +624,6 @@ class NanoleafCardEditor extends LitElement {
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 14px;
-    }
-    button {
-      border: none;
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .add { background: var(--primary-color); color: #fff; }
-    .rm {
-      background: none;
-      color: var(--error-color, #c00);
-      padding: 4px 8px;
     }
   `;
 
@@ -732,19 +636,18 @@ class NanoleafCardEditor extends LitElement {
     this.requestUpdate();
   }
 
-  // Working list of device configs, whatever style the config is in.
-  _devices() {
+  // The single device this card controls. Reads a flat config, or
+  // the first entry of a legacy devices: array.
+  _device() {
     if (Array.isArray(this._config?.devices)) {
-      return this._config.devices.length
-        ? this._config.devices
-        : [{}];
+      return this._config.devices[0] || {};
     }
     const d = {};
     for (const f of FIELDS) {
       if (this._config?.[f.key] != null) d[f.key] = this._config[f.key];
     }
     if (this._config?.name != null) d.name = this._config.name;
-    return [d];
+    return d;
   }
 
   _options(domain) {
@@ -753,19 +656,16 @@ class NanoleafCardEditor extends LitElement {
       .sort();
   }
 
-  // Emit flat config for a single device, devices: array for 2+.
-  // Preserve unrelated top-level keys (type, layout options).
-  _emit(devices) {
+  // Emit a flat single-device config, preserving unrelated top-level
+  // keys (type, layout options) and dropping any legacy devices: list.
+  _emit(device) {
     const fieldKeys = new Set([...FIELDS.map((f) => f.key), 'name']);
     const base = {};
     for (const [k, v] of Object.entries(this._config || {})) {
       if (k === 'devices' || fieldKeys.has(k)) continue;
       base[k] = v;
     }
-    const config =
-      devices.length <= 1
-        ? { ...base, ...(devices[0] || {}) }
-        : { ...base, devices };
+    const config = { ...base, ...device };
     this._config = config;
     this.dispatchEvent(
       new CustomEvent('config-changed', {
@@ -776,88 +676,86 @@ class NanoleafCardEditor extends LitElement {
     );
   }
 
-  _updateDevice(index, key, value) {
-    const devices = this._devices().map((d) => ({ ...d }));
-    if (value === '') delete devices[index][key];
-    else devices[index][key] = value;
-    this._emit(devices);
+  _updateField(key, value) {
+    const device = { ...this._device() };
+    if (value === '') delete device[key];
+    else device[key] = value;
+    this._emit(device);
   }
 
-  _addDevice() {
-    this._emit([...this._devices().map((d) => ({ ...d })), {}]);
+  // Controllers detected from the integration, for the picker.
+  _controllers() {
+    return autoDetectDevices(this._hass);
   }
 
-  // Re-scan the nanoleaf_reloaded integration and fill in a device
-  // block per controller automatically (no manual entity picking).
-  _autoDetect() {
-    const detected = autoDetectDevices(this._hass);
-    if (detected.length) this._emit(detected);
+  _controllerLabel(d, i) {
+    const lid = d.light_entity;
+    const name = this._hass?.states[lid]?.attributes?.friendly_name;
+    return name || lid || `Controller ${i + 1}`;
   }
 
-  _removeDevice(index) {
-    this._emit(this._devices().filter((_, j) => j !== index));
+  // Fill this card's fields from the chosen controller.
+  _selectController(e) {
+    const i = Number(e.target.value);
+    const detected = this._controllers();
+    if (detected[i]) this._emit(detected[i]);
   }
 
   render() {
     if (!this._hass) return html``;
-    const devices = this._devices();
+    const dev = this._device();
+    const controllers = this._controllers();
+    const selectedIdx = controllers.findIndex(
+      (c) => c.light_entity && c.light_entity === dev.light_entity
+    );
     return html`
       <div class="editor">
-        ${devices.map(
-          (dev, i) => html`
-            <div class="device-block">
-              <div class="device-head">
-                <span>Device ${i + 1}</span>
-                ${devices.length > 1
-                  ? html`<button
-                      class="rm"
-                      @click=${() => this._removeDevice(i)}
-                    >
-                      Remove
-                    </button>`
-                  : ''}
-              </div>
-              <div class="field">
-                <label>Name (optional)</label>
-                <input
-                  type="text"
-                  .value=${dev.name ?? ''}
-                  @input=${(e) =>
-                    this._updateDevice(i, 'name', e.target.value)}
-                />
-              </div>
-              ${FIELDS.map((f) => {
-                const val = dev[f.key] ?? '';
-                return html`
-                  <div class="field">
-                    <label>${f.label}</label>
-                    <select
-                      @change=${(e) =>
-                        this._updateDevice(i, f.key, e.target.value)}
-                    >
-                      <option value="" ?selected=${!val}>—</option>
-                      ${this._options(f.domain).map(
-                        (id) => html`
-                          <option
-                            value=${id}
-                            ?selected=${id === val}
-                          >
-                            ${id}
-                          </option>`
-                      )}
-                    </select>
-                  </div>`;
-              })}
-            </div>`
-        )}
-        <div class="editor-actions">
-          <button class="add" @click=${this._autoDetect}>
-            Auto-detect devices
-          </button>
-          <button class="add" @click=${this._addDevice}>
-            + Add device
-          </button>
+        <div class="field">
+          <label>Controller</label>
+          <select @change=${this._selectController}>
+            <option value="" ?selected=${selectedIdx < 0}>
+              — pick a controller —
+            </option>
+            ${controllers.map(
+              (c, i) => html`
+                <option value=${i} ?selected=${i === selectedIdx}>
+                  ${this._controllerLabel(c, i)}
+                </option>`
+            )}
+          </select>
         </div>
+        <div class="hint">
+          One card controls one controller — add another card for
+          another. Pick a controller to auto-fill, or set the entities
+          manually below.
+        </div>
+        <div class="field">
+          <label>Name (optional)</label>
+          <input
+            type="text"
+            .value=${dev.name ?? ''}
+            @input=${(e) => this._updateField('name', e.target.value)}
+          />
+        </div>
+        ${FIELDS.map((f) => {
+          const val = dev[f.key] ?? '';
+          return html`
+            <div class="field">
+              <label>${f.label}</label>
+              <select
+                @change=${(e) =>
+                  this._updateField(f.key, e.target.value)}
+              >
+                <option value="" ?selected=${!val}>—</option>
+                ${this._options(f.domain).map(
+                  (id) => html`
+                    <option value=${id} ?selected=${id === val}>
+                      ${id}
+                    </option>`
+                )}
+              </select>
+            </div>`;
+        })}
       </div>`;
   }
 }
