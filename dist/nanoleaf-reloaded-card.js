@@ -25,7 +25,8 @@ const w=globalThis,x=t=>t,A=w.trustedTypes,S=A?A.createPolicy("lit-html",{create
     svg { display: block; }
     /* fade panel colours in the preview, mirroring the hardware */
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
-    .svg-wrapper { position: relative; }
+    /* inset the preview from the card edges (sides + a little below) */
+    .svg-wrapper { position: relative; padding: 0 16px 8px; }
     .device-bar {
       display: flex;
       justify-content: flex-end;
