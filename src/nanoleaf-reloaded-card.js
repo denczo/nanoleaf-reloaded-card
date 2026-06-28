@@ -48,12 +48,13 @@ class NanoleafCard extends LitElement {
       padding: 4px 8px;
       font-size: 14px;
     }
-    /* original: top-right (flex-end), preview overlaps under it */
+    /* full-width bar, button centred, preview sits below it */
+    .power-bar {
+      display: flex;
+      justify-content: center;
+      padding: 6px 0 0;
+    }
     .power-btn {
-      position: absolute;
-      top: 4px;
-      right: 8px;
-      z-index: 2;
       background: none;
       border: none;
       border-radius: 50%;
@@ -360,8 +361,7 @@ class NanoleafCard extends LitElement {
     return html`
       <ha-card>
         ${this._renderPicker()}
-        <div class="svg-wrapper">
-          ${this._renderSVG(layoutState, colorsState)}
+        <div class="power-bar">
           <button
             class="power-btn"
             @click=${this._togglePower}
@@ -376,6 +376,9 @@ class NanoleafCard extends LitElement {
               }"
             ></ha-icon>
           </button>
+        </div>
+        <div class="svg-wrapper">
+          ${this._renderSVG(layoutState, colorsState)}
         </div>
         <div class="controls">
           <div class="color-row">
@@ -525,17 +528,18 @@ class NanoleafCard extends LitElement {
   }
 
   _togglePower() {
-    // flip immediately (optimistic), reconcile when HA confirms.
-    // Fail-safe: revert to the real state if not confirmed in 3s so
-    // the icon can never get stuck on a wrong value.
-    this._powerOv = !this._isOn;
+    // command the explicit target state (not a relative toggle, which
+    // reads HA's cached state and desyncs on rapid taps with a slow
+    // device). Optimistic flip + 3s fail-safe revert.
+    const next = !this._isOn;
+    this._powerOv = next;
     this.requestUpdate();
     clearTimeout(this._powerTimer);
     this._powerTimer = setTimeout(() => {
       this._powerOv = undefined;
       this.requestUpdate();
     }, 3000);
-    this._callService('light', 'toggle', {
+    this._callService('light', next ? 'turn_on' : 'turn_off', {
       entity_id: this._activeDevice.light_entity,
     });
   }

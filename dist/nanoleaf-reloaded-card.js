@@ -39,12 +39,13 @@ const x=globalThis,w=t=>t,A=x.trustedTypes,S=A?A.createPolicy("lit-html",{create
       padding: 4px 8px;
       font-size: 14px;
     }
-    /* original: top-right (flex-end), preview overlaps under it */
+    /* full-width bar, button centred, preview sits below it */
+    .power-bar {
+      display: flex;
+      justify-content: center;
+      padding: 6px 0 0;
+    }
     .power-btn {
-      position: absolute;
-      top: 4px;
-      right: 8px;
-      z-index: 2;
       background: none;
       border: none;
       border-radius: 50%;
@@ -214,8 +215,7 @@ const x=globalThis,w=t=>t,A=x.trustedTypes,S=A?A.createPolicy("lit-html",{create
         </ha-card>`}const e=this._hass.states[t.layout_sensor],i=this._hass.states[t.panel_colors_entity],s=this._hass.states[t.pattern_entity],n=this._hass.states[t.brightness_entity],r=this._hass.states[t.spread_entity],o=this._hass.states[t.color_entity],a=s?.state??"",l=n?.attributes??{},c=r?.attributes??{},h=this._wheelHs??function(t,e,i){const s=t/255,n=e/255,r=i/255,o=Math.max(s,n,r),a=o-Math.min(s,n,r);let l=0;return 0!==a&&(l=o===s?(n-r)/a%6:o===n?(r-s)/a+2:(s-n)/a+4,l=Math.round(60*l),l<0&&(l+=360)),{h:l,s:0===o?0:a/o}}(...o?.attributes?.rgb_color??[128,128,128]),d=function(t,e,i){const s=Math.min(1,Math.max(0,e))*i,n=t*Math.PI/180;return{x:Math.sin(n)*s,y:-Math.cos(n)*s}}(h.h,h.s,1),p=ht(h.h,h.s);return q`
       <ha-card>
         ${this._renderPicker()}
-        <div class="svg-wrapper">
-          ${this._renderSVG(e,i)}
+        <div class="power-bar">
           <button
             class="power-btn"
             @click=${this._togglePower}
@@ -226,6 +226,9 @@ const x=globalThis,w=t=>t,A=x.trustedTypes,S=A?A.createPolicy("lit-html",{create
               style="color:${this._isOn?"var(--primary-color)":"var(--disabled-text-color)"}"
             ></ha-icon>
           </button>
+        </div>
+        <div class="svg-wrapper">
+          ${this._renderSVG(e,i)}
         </div>
         <div class="controls">
           <div class="color-row">
@@ -277,7 +280,7 @@ const x=globalThis,w=t=>t,A=x.trustedTypes,S=A?A.createPolicy("lit-html",{create
         style="width:100%;height:280px;pointer-events:none;"
       >
         ${_}
-      </svg>`}_selectDevice(t){this._activeIndex=_t(t.target.value,this._devices.length),this._saveIndex(),this.requestUpdate()}_loadIndex(){try{return window.localStorage.getItem(this._storageKey)}catch(t){return null}}_saveIndex(){try{window.localStorage.setItem(this._storageKey,String(this._activeIndex))}catch(t){}}_reconnect(){const t=ft(this._activeDevice.reconnect_action);t&&this._callService(t.domain,t.service,t.data||{},t.target)}_togglePower(){this._powerOv=!this._isOn,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},3e3),this._callService("light","toggle",{entity_id:this._activeDevice.light_entity})}_wheelDown(t){this._wheelDragging=!0,t.target.setPointerCapture?.(t.pointerId),this._wheelApply(t)}_wheelMove(t){this._wheelDragging&&this._wheelApply(t)}_wheelUp(t){this._wheelDragging=!1,t.target.releasePointerCapture?.(t.pointerId)}_wheelApply(t){const e=t.currentTarget.getBoundingClientRect(),i=function(t,e,i){let s=180*Math.atan2(t,-e)/Math.PI;return s<0&&(s+=360),{h:s,s:i?Math.min(1,Math.hypot(t,e)/i):0}}(t.clientX-e.left-e.width/2,t.clientY-e.top-e.height/2,e.width/2);this._wheelHs=i;const s=ht(i.h,i.s);this._sentRgb=s,this._debouncedColor(s),this.requestUpdate()}_selectPattern(t){const e=this._activeDevice.pattern_entity;this._callService(e.split(".")[0],"select_option",{entity_id:e,option:t})}_renderPill(t,e,i,s){const n=Number(i.min??0),r=Number(i.max??100),o=Number(i.step??1),a="spread"===s?2.2:1,l=function(t,e,i,s=1){if(i===e)return 0;const n=Math.min(1,Math.max(0,(t-e)/(i-e)));return 1===s?n:Math.pow(n,1/s)}(this._ov?.[s]??Number(e?.state??n),n,r,a);return q`
+      </svg>`}_selectDevice(t){this._activeIndex=_t(t.target.value,this._devices.length),this._saveIndex(),this.requestUpdate()}_loadIndex(){try{return window.localStorage.getItem(this._storageKey)}catch(t){return null}}_saveIndex(){try{window.localStorage.setItem(this._storageKey,String(this._activeIndex))}catch(t){}}_reconnect(){const t=ft(this._activeDevice.reconnect_action);t&&this._callService(t.domain,t.service,t.data||{},t.target)}_togglePower(){const t=!this._isOn;this._powerOv=t,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},3e3),this._callService("light",t?"turn_on":"turn_off",{entity_id:this._activeDevice.light_entity})}_wheelDown(t){this._wheelDragging=!0,t.target.setPointerCapture?.(t.pointerId),this._wheelApply(t)}_wheelMove(t){this._wheelDragging&&this._wheelApply(t)}_wheelUp(t){this._wheelDragging=!1,t.target.releasePointerCapture?.(t.pointerId)}_wheelApply(t){const e=t.currentTarget.getBoundingClientRect(),i=function(t,e,i){let s=180*Math.atan2(t,-e)/Math.PI;return s<0&&(s+=360),{h:s,s:i?Math.min(1,Math.hypot(t,e)/i):0}}(t.clientX-e.left-e.width/2,t.clientY-e.top-e.height/2,e.width/2);this._wheelHs=i;const s=ht(i.h,i.s);this._sentRgb=s,this._debouncedColor(s),this.requestUpdate()}_selectPattern(t){const e=this._activeDevice.pattern_entity;this._callService(e.split(".")[0],"select_option",{entity_id:e,option:t})}_renderPill(t,e,i,s){const n=Number(i.min??0),r=Number(i.max??100),o=Number(i.step??1),a="spread"===s?2.2:1,l=function(t,e,i,s=1){if(i===e)return 0;const n=Math.min(1,Math.max(0,(t-e)/(i-e)));return 1===s?n:Math.pow(n,1/s)}(this._ov?.[s]??Number(e?.state??n),n,r,a);return q`
       <div
         class="pill-slider"
         @pointerdown=${t=>this._pillDown(t,n,r,o,s)}
