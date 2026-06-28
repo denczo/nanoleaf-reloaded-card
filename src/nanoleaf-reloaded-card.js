@@ -452,14 +452,16 @@ class NanoleafCard extends LitElement {
     // fatter stroke = panels fill more, tighter gap (like before)
     const GAP = 18;
     const STROKE = 14;
-    const padx = s / 1.5;
-    const pady = s / 6;
-    const xs = panels.map((p) => p.x);
-    const ys = panels.map((p) => p.y);
-    const minx = 0 - Math.max(...xs) - padx;
-    const maxx = 0 - Math.min(...xs) + padx;
-    const miny = Math.min(...ys) - pady;
-    const maxy = Math.max(...ys) + pady;
+    // viewBox from real panel extents: each panel reaches drawR plus
+    // half its stroke from its centre (rotation-invariant), so the
+    // outermost panels are never clipped. Panel centre = (-x, y).
+    const MARGIN = 6;
+    const reach = (p) =>
+      Math.max(p.geom.radius - GAP, 6) + STROKE / 2 + MARGIN;
+    const minx = Math.min(...panels.map((p) => -p.x - reach(p)));
+    const maxx = Math.max(...panels.map((p) => -p.x + reach(p)));
+    const miny = Math.min(...panels.map((p) => p.y - reach(p)));
+    const maxy = Math.max(...panels.map((p) => p.y + reach(p)));
 
     const polygons = panels.map((p) => {
       const hex = panelColors[String(p.panelId)] ?? '000000';
@@ -532,20 +534,25 @@ class NanoleafCard extends LitElement {
   }
 
   _togglePower() {
-    // command the explicit target state (not a relative toggle, which
-    // reads HA's cached state and desyncs on rapid taps with a slow
-    // device). Optimistic flip + 3s fail-safe revert.
-    const next = !this._isOn;
-    this._powerOv = next;
+    // Flip the display immediately. The actual command is DEBOUNCED so
+    // spamming on/off sends only the final state once, instead of N
+    // sequential round-trips that make the device physically bounce.
+    this._powerTarget = !this._isOn;
+    this._powerOv = this._powerTarget;
     this.requestUpdate();
     clearTimeout(this._powerTimer);
     this._powerTimer = setTimeout(() => {
       this._powerOv = undefined;
       this.requestUpdate();
     }, 3000);
-    this._callService('light', next ? 'turn_on' : 'turn_off', {
-      entity_id: this._activeDevice.light_entity,
-    });
+    clearTimeout(this._powerSendTimer);
+    this._powerSendTimer = setTimeout(() => {
+      this._callService(
+        'light',
+        this._powerTarget ? 'turn_on' : 'turn_off',
+        { entity_id: this._activeDevice.light_entity }
+      );
+    }, 350);
   }
 
   _wheelDown(e) {
