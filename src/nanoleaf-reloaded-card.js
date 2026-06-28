@@ -712,6 +712,7 @@ class NanoleafCardEditor extends LitElement {
       font-size: 14px;
       cursor: pointer;
     }
+    .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .add { background: var(--primary-color); color: #fff; }
     .rm {
       background: none;
@@ -784,6 +785,13 @@ class NanoleafCardEditor extends LitElement {
     this._emit([...this._devices().map((d) => ({ ...d })), {}]);
   }
 
+  // Re-scan the nanoleaf_reloaded integration and fill in a device
+  // block per controller automatically (no manual entity picking).
+  _autoDetect() {
+    const detected = autoDetectDevices(this._hass);
+    if (detected.length) this._emit(detected);
+  }
+
   _removeDevice(index) {
     this._emit(this._devices().filter((_, j) => j !== index));
   }
@@ -840,9 +848,14 @@ class NanoleafCardEditor extends LitElement {
               })}
             </div>`
         )}
-        <button class="add" @click=${this._addDevice}>
-          + Add device
-        </button>
+        <div class="editor-actions">
+          <button class="add" @click=${this._autoDetect}>
+            Auto-detect devices
+          </button>
+          <button class="add" @click=${this._addDevice}>
+            + Add device
+          </button>
+        </div>
       </div>`;
   }
 }
