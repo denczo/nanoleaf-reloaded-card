@@ -414,37 +414,53 @@ class NanoleafCard extends LitElement {
 
     const panelColors = parsePanelColors(colorsState?.state ?? '');
     // --- Gap algorithm: shape- and scale-independent -------------
-    // Each panel is sized from the ACTUAL distance to its nearest
-    // neighbour (the layout "pitch"), not from nominal shape sizes —
-    // those rely on a reported sideLength that can mismatch the panels
-    // actually present (e.g. an all-mini controller), which shrinks
-    // every panel and blows the gaps wide open. Each panel's edges are
-    // then inset by a fixed fraction of its pitch, so the space
-    // between any two shapes is the same ratio at any size or shape.
-    const GAP_RATIO = 0.05; // gap between panels = 5% of local pitch
+    // Nominal shape sizes give the correct RELATIVE sizes (a mini is
+    // half a big triangle) but the wrong absolute scale when the
+    // reported sideLength doesn't match the panels present. So keep the
+    // nominal ratios and recover the absolute scale from the layout:
+    // for each panel's nearest neighbour, actual centre-distance ÷
+    // nominal centre-distance (sum of the two inradii) is the scale;
+    // the median is robust to the odd non-adjacent pair. This keeps
+    // mixed big/mini layouts proportional. Each panel is then inset to
+    // a fixed fraction of its size, so the gap between any two shapes
+    // is the same ratio for any polygon at any size.
+    const GAP_RATIO = 0.05; // gap between panels = 5% of spacing
     const ROUND_FRAC = 0.22; // rounded-corner stroke, fraction of drawR
     const cx = panels.map((p) => -p.x);
     const cy = panels.map((p) => p.y);
-    const pitchOf = (i) => {
-      let m = Infinity;
-      for (let j = 0; j < panels.length; j++) {
-        if (j === i) continue;
-        const d = Math.hypot(cx[i] - cx[j], cy[i] - cy[j]);
-        if (d < m) m = d;
+    const inradius = (p) =>
+      p.geom.radius * Math.cos(Math.PI / p.geom.sides);
+    const nearest = (i) => {
+      let d = Infinity;
+      let j = -1;
+      for (let k = 0; k < panels.length; k++) {
+        if (k === i) continue;
+        const dist = Math.hypot(cx[i] - cx[k], cy[i] - cy[k]);
+        if (dist < d) {
+          d = dist;
+          j = k;
+        }
       }
-      // lone panel: fall back to its own nominal edge-to-edge pitch
-      const g = panels[i].geom;
-      return Number.isFinite(m)
-        ? m
-        : 2 * g.radius * Math.cos(Math.PI / g.sides);
+      return { d, j };
     };
-    // drawR solves: 2·inradius + stroke = pitch·(1 - GAP_RATIO), with
-    // inradius = drawR·cos(π/n) and stroke = drawR·ROUND_FRAC. This
-    // yields the same gap ratio for triangles, squares, hexagons, …
-    const geomOf = panels.map((p, i) => {
+    const samples = panels
+      .map((p, i) => {
+        const { d, j } = nearest(i);
+        if (j < 0) return null;
+        return d / (inradius(p) + inradius(panels[j]));
+      })
+      .filter((s) => s != null && Number.isFinite(s))
+      .sort((a, b) => a - b);
+    const scale = samples.length
+      ? samples[Math.floor(samples.length / 2)]
+      : 1;
+    // drawR holds a uniform gap ratio for any polygon:
+    // 2·inradius_drawn + stroke = pitch·(1 - GAP_RATIO).
+    const geomOf = panels.map((p) => {
       const cos = Math.cos(Math.PI / p.geom.sides);
+      const effR = p.geom.radius * scale;
       const drawR =
-        (pitchOf(i) * (1 - GAP_RATIO)) / (2 * cos + ROUND_FRAC);
+        (effR * cos * (1 - GAP_RATIO)) / (cos + ROUND_FRAC / 2);
       const stroke = drawR * ROUND_FRAC;
       return { drawR, stroke, reach: drawR + stroke / 2 };
     });

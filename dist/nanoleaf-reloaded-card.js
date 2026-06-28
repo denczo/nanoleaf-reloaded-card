@@ -245,7 +245,7 @@ const w=globalThis,A=t=>t,x=w.trustedTypes,S=x?x.createPolicy("lit-html",{create
             </div>
           </div>
         </div>
-      </ha-card>`}_renderSVG(t,e){const i=t?.attributes?.positionData??[],s=parseFloat(t?.attributes?.sideLength)||135,n=i.map(t=>({...t,geom:bt(t.shapeType,s)})).filter(t=>t.geom);if(!n.length)return q`<div style="height:260px"></div>`;const o=function(t){const e={};if(!t)return e;for(const i of t.split(",")){const t=i.indexOf(":");-1!==t&&(e[i.slice(0,t).trim()]=i.slice(t+1).trim())}return e}(e?.state??""),r=n.map(t=>-t.x),a=n.map(t=>t.y),l=n.map((t,e)=>{const i=Math.cos(Math.PI/t.geom.sides),s=.95*(t=>{let e=1/0;for(let i=0;i<n.length;i++){if(i===t)continue;const s=Math.hypot(r[t]-r[i],a[t]-a[i]);s<e&&(e=s)}const i=n[t].geom;return Number.isFinite(e)?e:2*i.radius*Math.cos(Math.PI/i.sides)})(e)/(2*i+.22),o=.22*s;return{drawR:s,stroke:o,reach:s+o/2}}),h=Math.min(...n.map((t,e)=>r[e]-l[e].reach)),c=Math.max(...n.map((t,e)=>r[e]+l[e].reach)),d=Math.min(...n.map((t,e)=>a[e]-l[e].reach)),p=Math.max(...n.map((t,e)=>a[e]+l[e].reach)),u=n.map((t,e)=>{const i=function(t,e){const i=parseInt(t.slice(0,2),16),s=parseInt(t.slice(2,4),16),n=parseInt(t.slice(4,6),16),o=Math.max(i,s,n);if(!e||0===o)return"rgb(77,77,77)";const r=255/o;return`rgb(${Math.round(i*r)},${Math.round(s*r)},${Math.round(n*r)})`}(o[String(t.panelId)]??"000000",this._isOn),s=function(t,e,i=1){const s=[];for(let n=0;n<e;n++){const o=(360/e*n-90)*Math.PI/180,r=(t*Math.cos(o)*i).toFixed(2),a=(t*Math.sin(o)*i).toFixed(2);s.push(`${r},${a}`)}return s.join(" ")}(l[e].drawR,t.geom.sides);return V`
+      </ha-card>`}_renderSVG(t,e){const i=t?.attributes?.positionData??[],s=parseFloat(t?.attributes?.sideLength)||135,n=i.map(t=>({...t,geom:bt(t.shapeType,s)})).filter(t=>t.geom);if(!n.length)return q`<div style="height:260px"></div>`;const o=function(t){const e={};if(!t)return e;for(const i of t.split(",")){const t=i.indexOf(":");-1!==t&&(e[i.slice(0,t).trim()]=i.slice(t+1).trim())}return e}(e?.state??""),r=n.map(t=>-t.x),a=n.map(t=>t.y),l=t=>t.geom.radius*Math.cos(Math.PI/t.geom.sides),h=n.map((t,e)=>{const{d:i,j:s}=(t=>{let e=1/0,i=-1;for(let s=0;s<n.length;s++){if(s===t)continue;const n=Math.hypot(r[t]-r[s],a[t]-a[s]);n<e&&(e=n,i=s)}return{d:e,j:i}})(e);return s<0?null:i/(l(t)+l(n[s]))}).filter(t=>null!=t&&Number.isFinite(t)).sort((t,e)=>t-e),c=h.length?h[Math.floor(h.length/2)]:1,d=n.map(t=>{const e=Math.cos(Math.PI/t.geom.sides),i=t.geom.radius*c*e*.95/(e+.11),s=.22*i;return{drawR:i,stroke:s,reach:i+s/2}}),p=Math.min(...n.map((t,e)=>r[e]-d[e].reach)),u=Math.max(...n.map((t,e)=>r[e]+d[e].reach)),_=Math.min(...n.map((t,e)=>a[e]-d[e].reach)),g=Math.max(...n.map((t,e)=>a[e]+d[e].reach)),f=n.map((t,e)=>{const i=function(t,e){const i=parseInt(t.slice(0,2),16),s=parseInt(t.slice(2,4),16),n=parseInt(t.slice(4,6),16),o=Math.max(i,s,n);if(!e||0===o)return"rgb(77,77,77)";const r=255/o;return`rgb(${Math.round(i*r)},${Math.round(s*r)},${Math.round(n*r)})`}(o[String(t.panelId)]??"000000",this._isOn),s=function(t,e,i=1){const s=[];for(let n=0;n<e;n++){const o=(360/e*n-90)*Math.PI/180,r=(t*Math.cos(o)*i).toFixed(2),a=(t*Math.sin(o)*i).toFixed(2);s.push(`${r},${a}`)}return s.join(" ")}(d[e].drawR,t.geom.sides);return V`
         <g
           data-panel-id=${t.panelId}
           transform="translate(${-t.x},${t.y})
@@ -255,17 +255,17 @@ const w=globalThis,A=t=>t,x=w.trustedTypes,S=x?x.createPolicy("lit-html",{create
             points=${s}
             fill=${i}
             stroke=${i}
-            stroke-width=${l[e].stroke}
+            stroke-width=${d[e].stroke}
             stroke-linejoin="round"
           />
         </g>`});return q`
       <svg
-        viewBox="${h} ${d} ${c-h} ${p-d}"
+        viewBox="${p} ${_} ${u-p} ${g-_}"
         preserveAspectRatio="xMidYMid meet"
         style="display:block;width:100%;height:100%;
                pointer-events:none;"
       >
-        ${u}
+        ${f}
       </svg>`}_reconnect(){const t=_t(this._activeDevice.reconnect_action);t&&this._callService(t.domain,t.service,t.data||{},t.target)}_togglePower(){this._powerTarget=!this._isOn,this._powerOv=this._powerTarget,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},3e3),clearTimeout(this._powerSendTimer),this._powerSendTimer=setTimeout(()=>{this._callService("light",this._powerTarget?"turn_on":"turn_off",{entity_id:this._activeDevice.light_entity})},350)}_wheelDown(t){this._wheelDragging=!0,t.target.setPointerCapture?.(t.pointerId),this._wheelApply(t)}_wheelMove(t){this._wheelDragging&&this._wheelApply(t)}_wheelUp(t){this._wheelDragging=!1,t.target.releasePointerCapture?.(t.pointerId)}_wheelApply(t){const e=t.currentTarget.getBoundingClientRect(),i=function(t,e,i){let s=180*Math.atan2(t,-e)/Math.PI;return s<0&&(s+=360),{h:s,s:i?Math.min(1,Math.hypot(t,e)/i):0}}(t.clientX-e.left-e.width/2,t.clientY-e.top-e.height/2,e.width/2);this._wheelHs=i;const s=ct(i.h,i.s);this._sentRgb=s,this._debouncedColor(s),this.requestUpdate()}_selectPattern(t){const e=this._activeDevice.pattern_entity;this._optimisticOn(),this._callService(e.split(".")[0],"select_option",{entity_id:e,option:t})}_optimisticOn(){this._isOn||(this._powerOv=!0,this.requestUpdate(),clearTimeout(this._powerTimer),this._powerTimer=setTimeout(()=>{this._powerOv=void 0,this.requestUpdate()},4e3))}_renderPill(t,e,i,s){const n=Number(i.min??0),o=Number(i.max??100),r=Number(i.step??1),a="spread"===s?2.2:1,l=function(t,e,i,s=1){if(i===e)return 0;const n=Math.min(1,Math.max(0,(t-e)/(i-e)));return 1===s?n:Math.pow(n,1/s)}(this._ov?.[s]??Number(e?.state??n),n,o,a);return q`
       <div
         class="pill-slider"
