@@ -34,8 +34,8 @@ class NanoleafCard extends LitElement {
     svg { display: block; }
     /* fade panel colours in the preview, mirroring the hardware */
     svg polygon { transition: fill 0.45s ease, stroke 0.45s ease; }
-    /* inset the preview from the card edges (sides + a little below) */
-    .svg-wrapper { position: relative; padding: 0 16px 8px; }
+    /* inset the preview equally from the side and bottom edges */
+    .svg-wrapper { position: relative; padding: 0 16px 16px; }
     .device-bar {
       display: flex;
       justify-content: flex-end;
